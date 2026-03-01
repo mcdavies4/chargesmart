@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://chargesmart-production.up.railway.app/sitemap.xml
