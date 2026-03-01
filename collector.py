@@ -1,41 +1,70 @@
 import requests
-import schedule
-import time
 import json
 from datetime import datetime
+import time
 
-API_URL = "https://overpass-api.de/api/interpreter"
+OVERPASS_URL = "http://overpass-api.de/api/interpreter"
 
-QUERY = """
-[out:json];
-node["amenity"="charging_station"]
-(51.0,-2.0,53.0,0.5);
-out body;
-"""
+# UK and US region bounding boxes [south, west, north, east]
+REGIONS = {
+    "uk": (51.0, -2.0, 53.0, 0.5),
+    "us_east": (38.0, -77.0, 42.5, -70.0),      # NY, Boston, DC
+    "us_west": (34.0, -122.5, 47.5, -117.0),     # LA, SF, Seattle
+    "us_texas": (25.5, -100.0, 36.5, -93.5),     # Texas & South
+    "us_midwest": (40.0, -90.0, 43.5, -82.5),    # Chicago, Detroit
+}
 
-def collect_data():
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"Collecting data at {timestamp}...")
-    
+def collect_region(name, bbox):
+    south, west, north, east = bbox
+    query = f"""
+    [out:json][timeout:60];
+    node["amenity"="charging_station"]({south},{west},{north},{east});
+    out body;
+    """
     try:
-        response = requests.post(API_URL, data=QUERY)
-        data = response.json()
-        
-        filename = f"data_{datetime.now().strftime('%Y%m%d')}.json"
-        with open(filename, "a") as f:
-            entry = {"timestamp": timestamp, "chargers": data["elements"]}
-            f.write(json.dumps(entry) + "\n")
-        
-        print(f"Saved {len(data['elements'])} chargers successfully!")
-    
+        response = requests.post(OVERPASS_URL, data={"data": query}, timeout=90)
+        if response.status_code == 200:
+            data = response.json()
+            chargers = data.get("elements", [])
+            print(f"  {name}: {len(chargers)} chargers")
+            return chargers
+        else:
+            print(f"  {name}: HTTP {response.status_code}")
+            return []
     except Exception as e:
-        print(f"Something went wrong: {e}")
-        print(f"Response text: {response.text[:200]}")
+        print(f"  {name}: Error - {e}")
+        return []
 
-collect_data()
-schedule.every(10).minutes.do(collect_data)
+def collect_all():
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    date = datetime.now().strftime("%Y%m%d")
+    print(f"\n[{timestamp}] Collecting all regions...")
 
-print("Data collector is running... Press CTRL+C to stop")
-while True:
-    schedule.run_pending()
-    time.sleep(1)
+    all_chargers = []
+    for name, bbox in REGIONS.items():
+        chargers = collect_region(name, bbox)
+        # Tag each charger with its region/country
+        for c in chargers:
+            c['region'] = name
+            c['country'] = 'US' if name.startswith('us_') else 'UK'
+        all_chargers.extend(chargers)
+        time.sleep(3)  # Be polite to the API
+
+    snapshot = {
+        "timestamp": timestamp,
+        "chargers": all_chargers
+    }
+
+    filename = f"data_{date}.json"
+    with open(filename, "a") as f:
+        f.write(json.dumps(snapshot) + "\n")
+
+    print(f"  Total: {len(all_chargers)} chargers saved to {filename}")
+
+if __name__ == "__main__":
+    print("ChargeSmart Collector — UK + US")
+    print("Collecting every 10 minutes. Press Ctrl+C to stop.\n")
+    while True:
+        collect_all()
+        print("  Waiting 10 minutes...")
+        time.sleep(600)

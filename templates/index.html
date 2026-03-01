@@ -189,8 +189,8 @@
                 <div class="card-title">// Your location</div>
                 <div class="location-row">
                     <div class="form-group">
-                        <label>Postcode</label>
-                        <input type="text" id="postcode" placeholder="e.g. SW1A 1AA" maxlength="8">
+                        <label id="postcode-label">Postcode / ZIP</label>
+                        <input type="text" id="postcode" placeholder="e.g. SW1A 1AA or 90210" maxlength="10">
                     </div>
                     <button class="gps-btn" onclick="useMyLocation()">📍 Use my location</button>
                 </div>
@@ -362,7 +362,24 @@
     </div>
 
     <script>
-        let userLat = null, userLon = null;
+        let userLat = null, userLon = null, userCountry = null;
+
+        // Auto-detect country on page load
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const lon = pos.coords.longitude;
+                    userCountry = (lon < -30) ? 'US' : 'UK';
+                    const label = document.getElementById("postcode-label");
+                    const input = document.getElementById("postcode");
+                    if (userCountry === 'US') {
+                        if (label) label.textContent = 'ZIP Code';
+                        if (input) input.placeholder = 'e.g. 90210 or 10001';
+                    }
+                },
+                () => {} // Silent fail - default to UK
+            );
+        }
         let fleetMode = false;
         let fleet = [];
         let activeTab = 'vehicles';
@@ -414,9 +431,12 @@
                 (pos) => {
                     userLat = pos.coords.latitude;
                     userLon = pos.coords.longitude;
+                    // Auto-detect country based on longitude
+                    userCountry = (userLon < -30) ? 'US' : 'UK';
                     document.getElementById("postcode").value = "";
                     document.getElementById("postcode").placeholder = `📍 ${userLat.toFixed(4)}, ${userLon.toFixed(4)}`;
-                    status.textContent = `✅ Location found — ${userLat.toFixed(4)}, ${userLon.toFixed(4)}`;
+                    const flag = userCountry === 'US' ? '🇺🇸' : '🇬🇧';
+                    status.textContent = `✅ ${flag} Location found — ${userLat.toFixed(4)}, ${userLon.toFixed(4)}`;
                 },
                 () => { status.textContent = "❌ Could not get location. Try entering a postcode instead."; }
             );
@@ -442,7 +462,7 @@
             status.classList.add("visible");
 
             const url = (userLat && !postcode)
-                ? `/nearby?lat=${userLat}&lon=${userLon}&hour=${hour}&day_of_week=${day}&radius=${radius}`
+                ? `/nearby?lat=${userLat}&lon=${userLon}&hour=${hour}&day_of_week=${day}&radius=${radius}&country=${userCountry || 'UK'}`
                 : `/nearby?postcode=${encodeURIComponent(postcode)}&hour=${hour}&day_of_week=${day}&radius=${radius}`;
 
             try {

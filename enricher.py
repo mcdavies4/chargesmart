@@ -1,59 +1,122 @@
 import json
 import csv
+import glob
 from datetime import datetime
 
-def get_time_features(timestamp):
-    dt = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
-    return {
-        "hour": dt.hour,
-        "day_of_week": dt.weekday(),
-        "is_weekend": dt.weekday() >= 5
-    }
+UK_OPERATORS = ['bp pulse', 'pod point', 'osprey', 'gridserve', 'zap-map', 'char.gy',
+                'ubitricity', 'geo', 'engenie', 'instavolt', 'evolt', 'mod', 'tesla']
 
-def get_location_type(tags):
-    name = tags.get("name", "").lower()
-    operator = tags.get("operator", "").lower()
-    if "motorway" in name or "services" in name:
-        return "motorway"
-    elif "supermarket" in name or "tesco" in operator or "sainsbury" in operator:
-        return "supermarket"
-    elif "council" in operator or "city" in operator:
-        return "council"
-    else:
-        return "other"
+US_OPERATORS = ['tesla', 'supercharger', 'chargepoint', 'evgo', 'blink', 
+                'electrify america', 'volta', 'semacharge', 'greenlots', 
+                'chargehub', 'francis', 'clipper creek']
 
-def process_data():
-    input_file = "data_20260301.json"
-    output_file = "enriched_data.csv"
-    fieldnames = ["timestamp", "hour", "day_of_week",
-                  "is_weekend", "location_type", "capacity",
-                  "lat", "lon", "operator"]
+def classify_location(tags, country):
+    name = tags.get('name', '').lower()
+    operator = tags.get('operator', '').lower()
+    combined = name + ' ' + operator
 
-    with open(output_file, "w", newline="") as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    if any(k in combined for k in ['motorway', 'services', 'highway', 'freeway', 'rest stop', 'truck stop']):
+        return 'motorway'
+    if any(k in combined for k in ['tesco', 'sainsbury', 'asda', 'morrisons', 'walmart', 'target', 'costco', 'kroger', 'supermarket', 'grocery']):
+        return 'supermarket'
+    if any(k in combined for k in ['council', 'city', 'borough', 'county', 'municipal', 'government']):
+        return 'council'
+    if any(k in combined for k in ['tesla', 'supercharger']):
+        return 'tesla'
+    return 'other'
+
+def get_operator(tags, country):
+    operator = tags.get('operator', '').strip()
+    name = tags.get('name', '').strip()
+    
+    operators = US_OPERATORS if country == 'US' else UK_OPERATORS
+    combined = (operator + ' ' + name).lower()
+    
+    for op in operators:
+        if op in combined:
+            return op.title()
+    
+    if operator:
+        return operator[:30]
+    if name:
+        return name[:30]
+    return 'unknown'
+
+def enrich():
+    files = glob.glob('data_*.json')
+    if not files:
+        print("No data files found!")
+        return
+
+    rows = []
+    for filepath in files:
+        print(f"Processing {filepath}...")
+        content = open(filepath, 'r').read()
+        
+        decoder = json.JSONDecoder()
+        pos = 0
+        snapshot_count = 0
+        
+        while pos < len(content):
+            try:
+                snapshot, pos = decoder.raw_decode(content, pos)
+                snapshot_count += 1
+                
+                timestamp = snapshot.get('timestamp', '')
+                try:
+                    dt = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
+                    hour = dt.hour
+                    day_of_week = dt.weekday()
+                    is_weekend = 1 if day_of_week >= 5 else 0
+                except:
+                    hour, day_of_week, is_weekend = 12, 0, 0
+
+                for c in snapshot.get('chargers', []):
+                    tags = c.get('tags', {})
+                    country = c.get('country', 'UK')
+                    
+                    try:
+                        capacity = int(tags.get('capacity', 1))
+                    except:
+                        capacity = 1
+
+                    rows.append({
+                        'id': c.get('id'),
+                        'timestamp': timestamp,
+                        'hour': hour,
+                        'day_of_week': day_of_week,
+                        'is_weekend': is_weekend,
+                        'location_type': classify_location(tags, country),
+                        'capacity': min(capacity, 20),
+                        'lat': c.get('lat', 0),
+                        'lon': c.get('lon', 0),
+                        'operator': get_operator(tags, country),
+                        'country': country,
+                    })
+
+                pos = content.find('{', pos)
+                if pos == -1:
+                    break
+            except:
+                break
+        
+        print(f"  {snapshot_count} snapshots processed")
+
+    if not rows:
+        print("No data to enrich!")
+        return
+
+    with open('enriched_data.csv', 'w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=rows[0].keys())
         writer.writeheader()
+        writer.writerows(rows)
 
-        with open(input_file, "r") as f:
-            for line in f:
-                snapshot = json.loads(line)
-                time_features = get_time_features(snapshot["timestamp"])
+    uk_count = sum(1 for r in rows if r['country'] == 'UK')
+    us_count = sum(1 for r in rows if r['country'] == 'US')
+    print(f"\nDone! {len(rows)} total rows")
+    print(f"  UK: {uk_count} rows")
+    print(f"  US: {us_count} rows")
+    print(f"Saved to enriched_data.csv")
 
-                for charger in snapshot["chargers"]:
-                    tags = charger.get("tags", {})
-                    row = {
-                        "timestamp": snapshot["timestamp"],
-                        "hour": time_features["hour"],
-                        "day_of_week": time_features["day_of_week"],
-                        "is_weekend": time_features["is_weekend"],
-                        "location_type": get_location_type(tags),
-                        "capacity": tags.get("capacity", 1),
-                        "lat": charger["lat"],
-                        "lon": charger["lon"],
-                        "operator": tags.get("operator", "unknown")
-                    }
-                    writer.writerow(row)
-
-    print("Enriched data saved to enriched_data.csv!")
-
-process_data()
-print("Done!")
+if __name__ == "__main__":
+    enrich()
