@@ -5,7 +5,7 @@ import json
 import pgeocode
 from geopy.distance import geodesic
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 
 import os
 
