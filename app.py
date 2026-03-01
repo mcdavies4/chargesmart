@@ -7,6 +7,14 @@ from geopy.distance import geodesic
 
 app = Flask(__name__)
 
+import os
+
+# Train model if it doesn't exist
+if not os.path.exists("charger_model.pkl"):
+    print("No model found - training now...")
+    import subprocess
+    subprocess.run(["python", "model.py"])
+
 # Load the trained AI model
 with open("charger_model.pkl", "rb") as f:
     model = pickle.load(f)

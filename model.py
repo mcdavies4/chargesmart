@@ -5,6 +5,29 @@ from sklearn.metrics import accuracy_score
 import numpy as np
 import pickle
 
+import os
+
+if not os.path.exists("enriched_data.csv"):
+    print("Generating synthetic training data...")
+    import numpy as np
+    rows = []
+    for _ in range(10000):
+        hour = np.random.randint(0, 24)
+        day = np.random.randint(0, 7)
+        is_weekend = day >= 5
+        capacity = np.random.choice([1, 2, 4, 8])
+        lat = np.random.uniform(50.0, 56.0)
+        lon = np.random.uniform(-3.0, 0.5)
+        rows.append([f"2026-01-01 {hour:02d}:00:00", hour, day, 
+                     is_weekend, "other", capacity, lat, lon, "unknown"])
+    import csv
+    with open("enriched_data.csv", "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["timestamp","hour","day_of_week","is_weekend",
+                         "location_type","capacity","lat","lon","operator"])
+        writer.writerows(rows)
+    print("Synthetic data generated!")
+
 # Load your enriched data
 df = pd.read_csv("enriched_data.csv")
 
