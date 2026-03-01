@@ -503,46 +503,35 @@
 
         async function generateSchedule() {
             if (fleet.length === 0) return;
-
             const container = document.getElementById("timeline-container");
             container.innerHTML = '<div class="empty-state">⚡ Generating AI schedule...</div>';
-
-            // Build hourly prediction data for each vehicle across their shift
-            const schedules = [];
             const day = new Date().getDay();
 
-            for (let v of fleet) {
-                const hourlyPreds = {};
-                // Fetch predictions for each hour of the shift
-                for (let h = v.shiftStart; h <= v.shiftEnd; h++) {
+            // Fetch ALL hours for ALL vehicles in parallel - much faster!
+            const schedules = await Promise.all(fleet.map(async (v) => {
+                const hours = [];
+                for (let h = v.shiftStart; h <= v.shiftEnd; h++) hours.push(h);
+
+                const results = await Promise.all(hours.map(async (h) => {
                     try {
                         const data = await (await fetch(`/nearby?postcode=${encodeURIComponent(v.postcode)}&hour=${h}&day_of_week=${day}&radius=2`)).json();
-                        if (!data.error) {
+                        if (!data.error && data.chargers.length > 0) {
                             const freeCount = data.chargers.filter(c => c.prediction === 'free').length;
-                            const total = data.chargers.length;
-                            hourlyPreds[h] = total > 0 ? freeCount / total : 0;
-                        } else {
-                            hourlyPreds[h] = 0.5;
+                            return [h, freeCount / data.chargers.length];
                         }
-                    } catch(e) { hourlyPreds[h] = 0.5; }
-                }
+                    } catch(e) {}
+                    return [h, 0.5];
+                }));
 
-                // Find best charging window (highest availability, ideally mid-shift)
-                let bestHour = v.shiftStart;
-                let bestScore = -1;
+                const hourlyPreds = Object.fromEntries(results);
+                let bestHour = v.shiftStart, bestScore = -1;
                 for (let h = v.shiftStart; h <= v.shiftEnd - 1; h++) {
                     const midBonus = 1 - Math.abs((h - (v.shiftStart + v.shiftEnd) / 2)) / ((v.shiftEnd - v.shiftStart) / 2) * 0.2;
                     const score = (hourlyPreds[h] || 0) * midBonus;
                     if (score > bestScore) { bestScore = score; bestHour = h; }
                 }
-
-                schedules.push({
-                    vehicle: v,
-                    hourlyPreds,
-                    chargeHour: bestHour,
-                    chargeAvailability: hourlyPreds[bestHour] || 0
-                });
-            }
+                return { vehicle: v, hourlyPreds, chargeHour: bestHour, chargeAvailability: hourlyPreds[bestHour] || 0 };
+            }));
 
             scheduleData = schedules;
             renderTimeline(schedules);
