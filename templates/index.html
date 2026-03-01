@@ -18,6 +18,15 @@
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://chargesmart-production.up.railway.app/">
 
+    <!-- PWA -->
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ChargeSmart">
+    <meta name="theme-color" content="#00ff87">
+    <meta name="mobile-web-app-capable" content="yes">
+
     <!-- Open Graph (LinkedIn, Facebook, WhatsApp previews) -->
     <meta property="og:title" content="ChargeSmart — Find Free EV Chargers Near You">
     <meta property="og:description" content="AI predictions for UK EV charging stations. Find a free charger near you before you even leave home.">
@@ -770,5 +779,48 @@
         </div>
     </div>
 
+
+    <!-- PWA Install Banner -->
+    <div id="install-banner" style="display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:1000;background:#12121a;border:1px solid #00ff87;border-radius:12px;padding:16px 20px;display:none;align-items:center;gap:16px;box-shadow:0 8px 30px rgba(0,255,135,0.2);max-width:340px;width:90%;">
+        <div>
+            <div style="font-weight:700;font-size:14px;margin-bottom:4px;">Install ChargeSmart</div>
+            <div style="font-family:'Space Mono',monospace;font-size:11px;color:#6b6b80;">Add to your home screen for quick access</div>
+        </div>
+        <button id="install-btn" style="padding:8px 16px;background:#00ff87;color:#0a0a0f;border:none;border-radius:8px;font-family:'Syne',sans-serif;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap;">INSTALL</button>
+        <button onclick="document.getElementById('install-banner').style.display='none'" style="background:transparent;border:none;color:#6b6b80;cursor:pointer;font-size:18px;padding:0 4px;">✕</button>
+    </div>
+
+    <script>
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/service-worker.js')
+                    .then(reg => console.log('SW registered'))
+                    .catch(err => console.log('SW error:', err));
+            });
+        }
+
+        // PWA install prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const banner = document.getElementById('install-banner');
+            banner.style.display = 'flex';
+        });
+
+        document.getElementById('install-btn').addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                deferredPrompt = null;
+                document.getElementById('install-banner').style.display = 'none';
+            }
+        });
+
+        window.addEventListener('appinstalled', () => {
+            document.getElementById('install-banner').style.display = 'none';
+        });
+    </script>
 </body>
 </html>

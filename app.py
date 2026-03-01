@@ -209,6 +209,16 @@ def nearby():
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+@app.route('/static/manifest.json')
+def manifest():
+    return app.send_static_file('manifest.json')
+
+@app.route('/static/service-worker.js')
+def service_worker():
+    response = app.send_static_file('service-worker.js')
+    response.headers['Service-Worker-Allowed'] = '/'
+    return response
+
 @app.route('/sitemap.xml')
 def sitemap():
     return app.send_static_file('sitemap.xml')
