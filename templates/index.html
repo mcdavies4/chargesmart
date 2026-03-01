@@ -128,9 +128,7 @@
             transition: all 0.2s;
             height: 46px;
         }
-        .gps-btn:hover {
-            background: rgba(0,255,135,0.1);
-        }
+        .gps-btn:hover { background: rgba(0,255,135,0.1); }
         .form-grid {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
@@ -187,10 +185,6 @@
             gap: 16px;
             align-items: center;
             animation: fadeUp 0.4s ease forwards;
-            transition: border-color 0.2s;
-        }
-        .charger-item:hover {
-            border-color: var(--border);
         }
         .charger-item.free { border-left: 3px solid var(--green); }
         .charger-item.busy { border-left: 3px solid var(--red); }
@@ -221,10 +215,23 @@
             font-family: 'Space Mono', monospace;
             font-size: 11px;
             color: var(--muted);
+            margin-bottom: 8px;
         }
-        .charger-prediction {
-            text-align: right;
+        .directions-btn {
+            display: inline-block;
+            padding: 6px 12px;
+            background: transparent;
+            border: 1px solid var(--green);
+            border-radius: 6px;
+            color: var(--green);
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            text-decoration: none;
+            letter-spacing: 1px;
+            transition: background 0.2s;
         }
+        .directions-btn:hover { background: rgba(0,255,135,0.1); }
+        .charger-prediction { text-align: right; }
         .pred-label {
             font-size: 13px;
             font-weight: 700;
@@ -286,7 +293,6 @@
                 </div>
                 <button class="gps-btn" onclick="useMyLocation()">📍 Use my location</button>
             </div>
-
             <div class="form-grid">
                 <div class="form-group">
                     <label>Arrival Time</label>
@@ -335,7 +341,6 @@
                     </select>
                 </div>
             </div>
-
             <div class="status-bar" id="status"></div>
             <button class="predict-btn" id="search-btn" onclick="search()">⚡ Find Chargers Near Me</button>
         </div>
@@ -357,12 +362,10 @@
             const status = document.getElementById("status");
             status.textContent = "📍 Getting your location...";
             status.classList.add("visible");
-
             if (!navigator.geolocation) {
                 status.textContent = "❌ Geolocation not supported by your browser";
                 return;
             }
-
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
                     userLat = pos.coords.latitude;
@@ -406,17 +409,14 @@
             try {
                 const response = await fetch(url);
                 const data = await response.json();
-
                 if (data.error) {
                     status.textContent = `❌ ${data.error}`;
                     btn.disabled = false;
                     btn.textContent = "⚡ Find Chargers Near Me";
                     return;
                 }
-
                 displayResults(data, hour, day);
                 status.textContent = `✅ Found ${data.total} chargers within ${radius} mile${radius > 1 ? 's' : ''}`;
-
             } catch(err) {
                 status.textContent = "❌ Something went wrong. Please try again.";
             }
@@ -449,17 +449,17 @@
                     <div class="charger-info">
                         <h3>${c.operator !== 'unknown' ? c.operator : 'Unknown Operator'}</h3>
                         <div class="charger-meta">
-                            📍 ${c.distance_miles} miles away &nbsp;|&nbsp; 
-                            🔋 ${c.capacity} bay${c.capacity > 1 ? 's' : ''}
+                            📍 ${c.distance_miles} miles away &nbsp;|&nbsp; 🔋 ${c.capacity} bay${c.capacity > 1 ? 's' : ''}
                         </div>
+                        <a class="directions-btn" href="https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lon}" target="_blank">
+                            🗺 GET DIRECTIONS
+                        </a>
                     </div>
                     <div class="charger-prediction">
                         <div class="pred-label ${c.prediction}">
                             ${c.prediction === 'free' ? 'LIKELY FREE' : 'LIKELY BUSY'}
                         </div>
-                        <div class="pred-pct">
-                            ${c.probability_free}% free
-                        </div>
+                        <div class="pred-pct">${c.probability_free}% free</div>
                     </div>
                 </div>
             `).join('');
