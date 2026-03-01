@@ -1,0 +1,9 @@
+flask
+requests
+schedule
+pandas
+scikit-learn
+numpy
+pgeocode
+geopy
+gunicorn
