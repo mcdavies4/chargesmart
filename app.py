@@ -22,7 +22,6 @@ def load_chargers():
         print(f"Loaded {len(chargers)} unique chargers")
         return chargers
     else:
-        print("No enriched_data.csv found, generating synthetic data...")
         return generate_synthetic_chargers()
 
 def generate_synthetic_chargers():
@@ -76,7 +75,6 @@ def train_model(chargers):
     return model
 
 def get_live_chargers(lat, lon, radius_miles, country):
-    """Fetch live charger data from OpenChargeMap"""
     try:
         radius_km = radius_miles * 1.60934
         country_code = 'GB' if country == 'UK' else 'US'
@@ -135,8 +133,8 @@ def get_live_chargers(lat, lon, radius_miles, country):
         print(f"OCM API error: {e}")
         return []
 
-# Load model and chargers
 chargers = load_chargers()
+
 if os.path.exists('charger_model.pkl'):
     with open('charger_model.pkl', 'rb') as f:
         model = pickle.load(f)
@@ -187,7 +185,6 @@ def nearby():
         hour = int(request.args.get('hour', 12))
         day_of_week = int(request.args.get('day_of_week', 0))
         radius_miles = float(request.args.get('radius', 1.0))
-
         if request.args.get('lat') and request.args.get('lon'):
             user_lat = float(request.args.get('lat'))
             user_lon = float(request.args.get('lon'))
@@ -199,19 +196,14 @@ def nearby():
                 return jsonify({'error': f'Could not find location: {query}. Please check and try again.'}), 400
         else:
             return jsonify({'error': 'Please provide a postcode, ZIP code, or coordinates'}), 400
-
         is_weekend = 1 if day_of_week >= 5 else 0
         results = []
-
-        # Try live OCM data first
         live_chargers = get_live_chargers(user_lat, user_lon, radius_miles, country)
-
         if live_chargers:
             for c in live_chargers[:20]:
                 features = np.array([[hour, day_of_week, is_weekend, c['capacity'], c['lat'], c['lon']]])
                 prediction = model.predict(features)[0]
                 proba = model.predict_proba(features)[0]
-
                 if c['live_status']:
                     final_prediction = c['live_status']
                     prob_free = 95.0 if c['live_status'] == 'free' else 5.0
@@ -220,7 +212,6 @@ def nearby():
                     final_prediction = 'busy' if prediction == 1 else 'free'
                     prob_free = round(float(proba[0]) * 100, 1)
                     source = 'ai'
-
                 results.append({
                     'id': c['id'],
                     'lat': c['lat'],
@@ -235,17 +226,14 @@ def nearby():
                     'source': source
                 })
         else:
-            # Fall back to our database + AI
             local_chargers = chargers.copy()
             if country and 'country' in local_chargers.columns:
                 local_chargers = local_chargers[local_chargers['country'] == country]
-
             nearby_list = []
             for _, c in local_chargers.iterrows():
                 dist = geodesic((user_lat, user_lon), (c['lat'], c['lon'])).miles
                 if dist <= radius_miles:
                     nearby_list.append((dist, c))
-
             for dist, c in sorted(nearby_list)[:20]:
                 features = np.array([[hour, day_of_week, is_weekend, c['capacity'], c['lat'], c['lon']]])
                 prediction = model.predict(features)[0]
@@ -263,9 +251,7 @@ def nearby():
                     'country': str(c.get('country', 'UK')),
                     'source': 'ai'
                 })
-
         return jsonify({'total': len(results), 'chargers': results})
-
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
