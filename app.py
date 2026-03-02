@@ -22,6 +22,7 @@ def load_chargers():
         print(f"Loaded {len(chargers)} unique chargers")
         return chargers
     else:
+        print("No enriched_data.csv found, generating synthetic data...")
         return generate_synthetic_chargers()
 
 def generate_synthetic_chargers():
@@ -75,6 +76,7 @@ def train_model(chargers):
     return model
 
 def get_live_chargers(lat, lon, radius_miles, country):
+    """Fetch live charger data from OpenChargeMap"""
     try:
         radius_km = radius_miles * 1.60934
         country_code = 'GB' if country == 'UK' else 'US'
@@ -113,4 +115,178 @@ def get_live_chargers(lat, lon, radius_miles, country):
                     status_id = status_type.get('ID', 0)
                     if status_id == 50:
                         live_status = 'free'
-                    elif status_id​​​​​​​​​​​​​​​​
+                    elif status_id == 210:
+                        live_status = 'busy'
+                dist = geodesic((lat, lon), (c_lat, c_lon)).miles
+                chargers.append({
+                    'id': poi.get('ID', 0),
+                    'lat': float(c_lat),
+                    'lon': float(c_lon),
+                    'operator': operator,
+                    'capacity': capacity,
+                    'distance_miles': round(dist, 2),
+                    'live_status': live_status,
+                    'country': country,
+                })
+            except:
+                continue
+        return sorted(chargers, key=lambda x: x['distance_miles'])
+    except Exception as e:
+        print(f"OCM API error: {e}")
+        return []
+
+# Load model and chargers
+chargers = load_chargers()
+if os.path.exists('charger_model.pkl'):
+    with open('charger_model.pkl', 'rb') as f:
+        model = pickle.load(f)
+    print("Model loaded from file")
+else:
+    print("Training model...")
+    model = train_model(chargers)
+
+nomi_uk = pgeocode.Nominatim('GB')
+nomi_us = pgeocode.Nominatim('US')
+
+def lookup_location(query):
+    query = query.strip().upper()
+    result = nomi_uk.query_postal_code(query)
+    if result is not None and not pd.isna(result.latitude):
+        return float(result.latitude), float(result.longitude), 'UK'
+    result = nomi_us.query_postal_code(query)
+    if result is not None and not pd.isna(result.latitude):
+        return float(result.latitude), float(result.longitude), 'US'
+    return None, None, None
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/predict')
+def predict():
+    try:
+        hour = int(request.args.get('hour', 12))
+        day_of_week = int(request.args.get('day_of_week', 0))
+        capacity = int(request.args.get('capacity', 2))
+        lat = float(request.args.get('lat', 51.5))
+        lon = float(request.args.get('lon', -0.1))
+        features = np.array([[hour, day_of_week, 1 if day_of_week >= 5 else 0, capacity, lat, lon]])
+        prediction = model.predict(features)[0]
+        proba = model.predict_proba(features)[0]
+        return jsonify({
+            'prediction': 'busy' if prediction == 1 else 'free',
+            'probability_busy': round(float(proba[1]) * 100, 1),
+            'probability_free': round(float(proba[0]) * 100, 1)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/nearby')
+def nearby():
+    try:
+        hour = int(request.args.get('hour', 12))
+        day_of_week = int(request.args.get('day_of_week', 0))
+        radius_miles = float(request.args.get('radius', 1.0))
+
+        if request.args.get('lat') and request.args.get('lon'):
+            user_lat = float(request.args.get('lat'))
+            user_lon = float(request.args.get('lon'))
+            country = request.args.get('country', 'UK')
+        elif request.args.get('postcode'):
+            query = request.args.get('postcode')
+            user_lat, user_lon, country = lookup_location(query)
+            if user_lat is None:
+                return jsonify({'error': f'Could not find location: {query}. Please check and try again.'}), 400
+        else:
+            return jsonify({'error': 'Please provide a postcode, ZIP code, or coordinates'}), 400
+
+        is_weekend = 1 if day_of_week >= 5 else 0
+        results = []
+
+        # Try live OCM data first
+        live_chargers = get_live_chargers(user_lat, user_lon, radius_miles, country)
+
+        if live_chargers:
+            for c in live_chargers[:20]:
+                features = np.array([[hour, day_of_week, is_weekend, c['capacity'], c['lat'], c['lon']]])
+                prediction = model.predict(features)[0]
+                proba = model.predict_proba(features)[0]
+
+                if c['live_status']:
+                    final_prediction = c['live_status']
+                    prob_free = 95.0 if c['live_status'] == 'free' else 5.0
+                    source = 'live'
+                else:
+                    final_prediction = 'busy' if prediction == 1 else 'free'
+                    prob_free = round(float(proba[0]) * 100, 1)
+                    source = 'ai'
+
+                results.append({
+                    'id': c['id'],
+                    'lat': c['lat'],
+                    'lon': c['lon'],
+                    'operator': c['operator'],
+                    'capacity': c['capacity'],
+                    'distance_miles': c['distance_miles'],
+                    'prediction': final_prediction,
+                    'probability_free': prob_free,
+                    'probability_busy': round(100 - prob_free, 1),
+                    'country': c['country'],
+                    'source': source
+                })
+        else:
+            # Fall back to our database + AI
+            local_chargers = chargers.copy()
+            if country and 'country' in local_chargers.columns:
+                local_chargers = local_chargers[local_chargers['country'] == country]
+
+            nearby_list = []
+            for _, c in local_chargers.iterrows():
+                dist = geodesic((user_lat, user_lon), (c['lat'], c['lon'])).miles
+                if dist <= radius_miles:
+                    nearby_list.append((dist, c))
+
+            for dist, c in sorted(nearby_list)[:20]:
+                features = np.array([[hour, day_of_week, is_weekend, c['capacity'], c['lat'], c['lon']]])
+                prediction = model.predict(features)[0]
+                proba = model.predict_proba(features)[0]
+                results.append({
+                    'id': int(c['id']),
+                    'lat': round(float(c['lat']), 6),
+                    'lon': round(float(c['lon']), 6),
+                    'operator': str(c['operator']),
+                    'capacity': int(c['capacity']),
+                    'distance_miles': round(dist, 2),
+                    'prediction': 'busy' if prediction == 1 else 'free',
+                    'probability_free': round(float(proba[0]) * 100, 1),
+                    'probability_busy': round(float(proba[1]) * 100, 1),
+                    'country': str(c.get('country', 'UK')),
+                    'source': 'ai'
+                })
+
+        return jsonify({'total': len(results), 'chargers': results})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/static/manifest.json')
+def manifest():
+    return app.send_static_file('manifest.json')
+
+@app.route('/static/service-worker.js')
+def service_worker():
+    response = app.send_static_file('service-worker.js')
+    response.headers['Service-Worker-Allowed'] = '/'
+    return response
+
+@app.route('/sitemap.xml')
+def sitemap():
+    return app.send_static_file('sitemap.xml')
+
+@app.route('/robots.txt')
+def robots():
+    return app.send_static_file('robots.txt')
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
