@@ -10,6 +10,5 @@ print(f"Total chargers: {len(chargers)}")
 print(f"Timestamp: {snapshot['timestamp']}")
 print("")
 print("Sample of 5 chargers:")
-
 for c in chargers[:5]:
-    print(f"  - {c['id']} | {c['lat']} | {c['lon']} | {c['tags']}")
+    print(f"  - ID: {c['id']} | Lat: {c['lat']} | Lon: {c['lon']} | Tags: {c['tags']}")
