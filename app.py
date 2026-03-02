@@ -176,8 +176,6 @@ def lookup_location(query):
     return None, None, None
 
 # Register payment routes
-from payments import register_payment_routes
-register_payment_routes(app)
 
 @app.route('/')
 def index():
