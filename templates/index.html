@@ -169,6 +169,18 @@
         .vehicle-schedule-detail { margin-top: 20px; background: var(--dark); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: none; }
         .vehicle-schedule-detail.visible { display: block; }
 
+        .route-stop { background: var(--dark); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 12px; position: relative; }
+        .route-stop.free { border-left: 3px solid var(--green); }
+        .route-stop.busy { border-left: 3px solid var(--red); }
+        .route-connector { width: 2px; height: 24px; background: var(--border); margin: 0 auto 0 21px; }
+        .route-stop-number { width: 32px; height: 32px; border-radius: 50%; background: var(--green); color: var(--dark); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0; }
+        .route-stop-number.start { background: var(--green); }
+        .route-stop-number.end { background: var(--muted); }
+        .route-stop-number.charge { background: rgba(0,255,135,0.2); border: 2px solid var(--green); color: var(--green); }
+        .route-timeline { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+        .route-time { font-family: Space Mono,monospace; font-size: 11px; color: var(--muted); min-width: 50px; }
+        .availability-bar { height: 6px; border-radius: 3px; flex: 1; background: var(--border); overflow: hidden; }
+        .availability-fill { height: 100%; border-radius: 3px; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @media (max-width: 700px) {
             .form-grid { grid-template-columns: 1fr; }
@@ -186,7 +198,10 @@
         <header>
             <div style="display:flex;justify-content:space-between;align-items:center;">
                 <div class="logo">⚡ ChargeSmart UK</div>
+                <div style="display:flex;gap:8px;">
+                <button id="route-toggle" class="fleet-toggle-btn" onclick="toggleRouteMode()">🗺 ROUTE PLANNER</button>
                 <button id="fleet-toggle" class="fleet-toggle-btn" onclick="toggleFleetMode()">FLEET MODE</button>
+            </div>
             </div>
             <h1>Find a <span>free</span><br>charger near you</h1>
             <p class="subtitle">// AI predictions for UK EV chargers</p>
@@ -261,6 +276,87 @@
                     <div class="results-count" id="results-count"></div>
                 </div>
                 <div class="charger-list" id="charger-list"></div>
+            </div>
+        </div>
+
+        <!-- ROUTE PLANNER SECTION -->
+        <div id="route-section" style="display:none">
+            <div class="card">
+                <div class="card-title">// Route + Charge Planner</div>
+                <div style="margin-bottom:20px;padding:16px;background:rgba(0,255,135,0.05);border:1px solid rgba(0,255,135,0.15);border-radius:8px;font-family:Space Mono,monospace;font-size:12px;color:var(--muted);line-height:1.6;">
+                    Enter your start and end point. AI finds the best charging stops along your route, predicting availability at the exact time you will arrive.
+                </div>
+
+                <div class="form-grid" style="margin-bottom:16px;">
+                    <div class="form-group">
+                        <label>Start Location</label>
+                        <input type="text" id="route-start" placeholder="e.g. SW1A 1AA or 10001">
+                    </div>
+                    <div class="form-group">
+                        <label>End Location</label>
+                        <input type="text" id="route-end" placeholder="e.g. M1 1AE or 90210">
+                    </div>
+                    <div class="form-group">
+                        <label>Departure Time</label>
+                        <select id="route-hour">
+                            <option value="6">6:00 AM</option>
+                            <option value="7">7:00 AM</option>
+                            <option value="8" selected>8:00 AM</option>
+                            <option value="9">9:00 AM</option>
+                            <option value="10">10:00 AM</option>
+                            <option value="11">11:00 AM</option>
+                            <option value="12">12:00 PM</option>
+                            <option value="13">1:00 PM</option>
+                            <option value="14">2:00 PM</option>
+                            <option value="15">3:00 PM</option>
+                            <option value="16">4:00 PM</option>
+                            <option value="17">5:00 PM</option>
+                            <option value="18">6:00 PM</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-grid" style="margin-bottom:20px;">
+                    <div class="form-group">
+                        <label>Vehicle Range (miles)</label>
+                        <select id="route-range">
+                            <option value="80">80 miles (short range)</option>
+                            <option value="120">120 miles (medium range)</option>
+                            <option value="150">150 miles</option>
+                            <option value="200" selected>200 miles (long range)</option>
+                            <option value="300">300 miles (Tesla/premium)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Day of Week</label>
+                        <select id="route-day">
+                            <option value="0">Monday</option>
+                            <option value="1">Tuesday</option>
+                            <option value="2">Wednesday</option>
+                            <option value="3">Thursday</option>
+                            <option value="4">Friday</option>
+                            <option value="5">Saturday</option>
+                            <option value="6">Sunday</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Search Radius at Stops</label>
+                        <select id="route-radius">
+                            <option value="1">1 mile</option>
+                            <option value="2" selected>2 miles</option>
+                            <option value="5">5 miles</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="status-bar" id="route-status"></div>
+                <button class="predict-btn" id="route-btn" onclick="planRoute()">🗺 PLAN MY ROUTE</button>
+            </div>
+
+            <div class="card" id="route-results" style="display:none">
+                <div class="card-title">// Your charging route</div>
+                <div id="route-summary" style="display:flex;gap:24px;margin-bottom:24px;flex-wrap:wrap;"></div>
+                <div id="route-timeline"></div>
             </div>
         </div>
 
@@ -394,6 +490,265 @@
         let activeTab = 'vehicles';
         let scheduleData = [];
 
+        let routeMode = false;
+
+        function toggleRouteMode() {
+            routeMode = !routeMode;
+            const btn = document.getElementById("route-toggle");
+            const fleetBtn = document.getElementById("fleet-toggle");
+            if (routeMode) {
+                btn.style.borderColor = "var(--green)";
+                btn.style.color = "var(--green)";
+                btn.textContent = "✓ ROUTE PLANNER";
+                document.getElementById("consumer-section").style.display = "none";
+                document.getElementById("fleet-section").style.display = "none";
+                document.getElementById("route-section").style.display = "block";
+                // Reset fleet mode
+                fleetMode = false;
+                fleetBtn.style.borderColor = "var(--muted)";
+                fleetBtn.style.color = "var(--muted)";
+                fleetBtn.textContent = "FLEET MODE";
+                // Set today
+                const today = new Date().getDay();
+                document.getElementById("route-day").value = today;
+            } else {
+                btn.style.borderColor = "var(--muted)";
+                btn.style.color = "var(--muted)";
+                btn.textContent = "🗺 ROUTE PLANNER";
+                document.getElementById("consumer-section").style.display = "block";
+                document.getElementById("route-section").style.display = "none";
+            }
+        }
+
+        async function planRoute() {
+            const start = document.getElementById("route-start").value.trim();
+            const end = document.getElementById("route-end").value.trim();
+            const hour = parseInt(document.getElementById("route-hour").value);
+            const day = parseInt(document.getElementById("route-day").value);
+            const range = parseInt(document.getElementById("route-range").value);
+            const radius = document.getElementById("route-radius").value;
+            const status = document.getElementById("route-status");
+            const btn = document.getElementById("route-btn");
+
+            if (!start || !end) {
+                status.textContent = "Please enter both a start and end location";
+                status.classList.add("visible");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = "Planning route...";
+            status.textContent = "Finding locations and calculating charging stops...";
+            status.classList.add("visible");
+
+            try {
+                // Get start coords
+                const startData = await fetch(`/nearby?postcode=${encodeURIComponent(start)}&hour=${hour}&day_of_week=${day}&radius=${radius}`).then(r => r.json());
+                if (startData.error) { status.textContent = "Could not find start location: " + start; btn.disabled = false; btn.textContent = "🗺 PLAN MY ROUTE"; return; }
+
+                // Get end coords
+                const endData = await fetch(`/nearby?postcode=${encodeURIComponent(end)}&hour=${hour}&day_of_week=${day}&radius=${radius}`).then(r => r.json());
+                if (endData.error) { status.textContent = "Could not find end location: " + end; btn.disabled = false; btn.textContent = "🗺 PLAN MY ROUTE"; return; }
+
+                // Calculate route stops based on range
+                // We use a simple interpolation between start and end
+                // In production this would use Google Maps Directions API
+                const startLat = startData.chargers.length > 0 ? startData.chargers[0].lat : null;
+                const startLon = startData.chargers.length > 0 ? startData.chargers[0].lon : null;
+                const endLat = endData.chargers.length > 0 ? endData.chargers[0].lat : null;
+                const endLon = endData.chargers.length > 0 ? endData.chargers[0].lon : null;
+
+                if (!startLat || !endLat) {
+                    status.textContent = "No chargers found near your locations. Try increasing radius.";
+                    btn.disabled = false;
+                    btn.textContent = "🗺 PLAN MY ROUTE";
+                    return;
+                }
+
+                // Calculate distance in miles (rough)
+                const R = 3959;
+                const dLat = (endLat - startLat) * Math.PI / 180;
+                const dLon = (endLon - startLon) * Math.PI / 180;
+                const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(startLat * Math.PI/180) * Math.cos(endLat * Math.PI/180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+                const totalMiles = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+                // How many stops needed (charge at 20% remaining)
+                const effectiveRange = range * 0.8;
+                const numStops = Math.max(0, Math.ceil(totalMiles / effectiveRange) - 1);
+                const avgSpeed = 60; // mph average
+
+                // Build stops
+                const stops = [];
+                let currentHour = hour;
+                let currentMin = 0;
+
+                // Start
+                stops.push({
+                    type: 'start',
+                    label: start.toUpperCase(),
+                    time: formatTime(currentHour, currentMin),
+                    chargers: startData.chargers.slice(0, 3),
+                    isCharge: false,
+                    miles: 0
+                });
+
+                // Charging stops along the way
+                for (let i = 1; i <= numStops; i++) {
+                    const fraction = i / (numStops + 1);
+                    const stopLat = startLat + (endLat - startLat) * fraction;
+                    const stopLon = startLon + (endLon - startLon) * fraction;
+                    const milesFromStart = Math.round(totalMiles * fraction);
+                    const driveMinutes = Math.round((milesFromStart / avgSpeed) * 60);
+                    currentMin += driveMinutes;
+                    currentHour += Math.floor(currentMin / 60);
+                    currentMin = currentMin % 60;
+                    const arrivalHour = currentHour % 24;
+
+                    // Fetch chargers at this stop
+                    const stopData = await fetch(`/nearby?lat=${stopLat}&lon=${stopLon}&hour=${arrivalHour}&day_of_week=${day}&radius=${radius}&country=UK`).then(r => r.json());
+
+                    // Add 30 min for charging
+                    currentMin += 30;
+                    currentHour += Math.floor(currentMin / 60);
+                    currentMin = currentMin % 60;
+
+                    stops.push({
+                        type: 'charge',
+                        label: `Charging Stop ${i}`,
+                        time: formatTime(arrivalHour, 0),
+                        departTime: formatTime(currentHour % 24, currentMin),
+                        chargers: stopData.chargers ? stopData.chargers.slice(0, 3) : [],
+                        isCharge: true,
+                        miles: milesFromStart,
+                        arrivalHour
+                    });
+                }
+
+                // End
+                const totalDriveMin = Math.round((totalMiles / avgSpeed) * 60);
+                const endMin = (hour * 60) + totalDriveMin + (numStops * 30);
+                stops.push({
+                    type: 'end',
+                    label: end.toUpperCase(),
+                    time: formatTime(Math.floor(endMin / 60) % 24, endMin % 60),
+                    chargers: endData.chargers.slice(0, 3),
+                    isCharge: false,
+                    miles: Math.round(totalMiles)
+                });
+
+                displayRoute(stops, totalMiles, numStops, hour, Math.floor(endMin/60) % 24);
+                status.textContent = `Route planned — ${Math.round(totalMiles)} miles, ${numStops} charging stop${numStops !== 1 ? 's' : ''}`;
+
+            } catch(e) {
+                status.textContent = "Something went wrong. Please try again.";
+                console.error(e);
+            }
+
+            btn.disabled = false;
+            btn.textContent = "🗺 PLAN MY ROUTE";
+        }
+
+        function formatTime(h, m) {
+            const hh = h % 24;
+            const mm = m % 60;
+            const ampm = hh < 12 ? 'AM' : 'PM';
+            const h12 = hh === 0 ? 12 : hh > 12 ? hh - 12 : hh;
+            return `${h12}:${mm.toString().padStart(2,'0')} ${ampm}`;
+        }
+
+        function displayRoute(stops, totalMiles, numStops, startHour, endHour) {
+            const results = document.getElementById("route-results");
+            const summary = document.getElementById("route-summary");
+            const timeline = document.getElementById("route-timeline");
+
+            const totalTime = endHour - startHour;
+            summary.innerHTML = `
+                <div style="background:var(--dark);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;flex:1;">
+                    <div style="font-size:24px;font-weight:800;color:var(--green);">${Math.round(totalMiles)}</div>
+                    <div style="font-family:Space Mono,monospace;font-size:11px;color:var(--muted);">TOTAL MILES</div>
+                </div>
+                <div style="background:var(--dark);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;flex:1;">
+                    <div style="font-size:24px;font-weight:800;color:var(--green);">${numStops}</div>
+                    <div style="font-family:Space Mono,monospace;font-size:11px;color:var(--muted);">CHARGING STOPS</div>
+                </div>
+                <div style="background:var(--dark);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;flex:1;">
+                    <div style="font-size:24px;font-weight:800;color:var(--green);">${numStops * 30}m</div>
+                    <div style="font-family:Space Mono,monospace;font-size:11px;color:var(--muted);">CHARGING TIME</div>
+                </div>
+            `;
+
+            let html = '';
+            stops.forEach((stop, idx) => {
+                const isLast = idx === stops.length - 1;
+                const icon = stop.type === 'start' ? '🟢' : stop.type === 'end' ? '🏁' : '⚡';
+                const borderColor = stop.type === 'charge' ? 'var(--green)' : 'var(--border)';
+
+                html += `<div class="route-stop" style="border-left:3px solid ${borderColor};">`;
+                html += `<div style="display:flex;align-items:start;gap:12px;">`;
+                html += `<div style="font-size:20px;margin-top:2px;">${icon}</div>`;
+                html += `<div style="flex:1;">`;
+                html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">`;
+                html += `<div style="font-weight:700;font-size:15px;">${stop.label}</div>`;
+                html += `<div style="font-family:Space Mono,monospace;font-size:12px;color:var(--green);">${stop.time}</div>`;
+                html += `</div>`;
+
+                if (stop.miles > 0) {
+                    html += `<div style="font-family:Space Mono,monospace;font-size:11px;color:var(--muted);margin-bottom:8px;">${stop.miles} miles from start</div>`;
+                }
+
+                if (stop.isCharge && stop.chargers && stop.chargers.length > 0) {
+                    const best = stop.chargers[0];
+                    const isFree = best.prediction === 'free';
+                    html += `<div style="background:${isFree ? 'rgba(0,255,135,0.05)' : 'rgba(255,80,80,0.05)'};border:1px solid ${isFree ? 'rgba(0,255,135,0.2)' : 'rgba(255,80,80,0.2)'};border-radius:8px;padding:12px;margin-bottom:8px;">`;
+                    html += `<div style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:6px;">RECOMMENDED CHARGER</div>`;
+                    html += `<div style="font-weight:600;margin-bottom:4px;">${best.operator !== 'unknown' ? best.operator : 'Nearest Charger'}</div>`;
+                    html += `<div style="font-family:Space Mono,monospace;font-size:11px;color:var(--muted);margin-bottom:6px;">`;
+                    html += `${best.distance_miles} miles off route &nbsp;|&nbsp; ${best.capacity} bay${best.capacity > 1 ? 's' : ''} &nbsp;|&nbsp; `;
+                    html += `<span style="color:${isFree ? 'var(--green)' : 'var(--red)'};">${isFree ? 'LIKELY FREE' : 'LIKELY BUSY'} (${best.probability_free}%)</span>`;
+                    html += `</div>`;
+
+                    // Availability bar
+                    html += `<div class="availability-bar" style="margin-bottom:8px;"><div class="availability-fill" style="width:${best.probability_free}%;background:${isFree ? 'var(--green)' : 'var(--red)'};"></div></div>`;
+
+                    // Estimated wait
+                    const waitTime = isFree ? 0 : Math.round((1 - best.probability_free/100) * 20);
+                    html += `<div style="font-family:Space Mono,monospace;font-size:11px;color:var(--muted);margin-bottom:8px;">`;
+                    html += `Estimated wait: <span style="color:${waitTime === 0 ? 'var(--green)' : 'var(--yellow)'};">${waitTime === 0 ? 'No wait' : waitTime + ' mins'}</span>`;
+                    html += `</div>`;
+
+                    html += `<a href="https://www.google.com/maps/dir/?api=1&destination=${best.lat},${best.lon}" target="_blank" class="directions-btn">🗺 GET DIRECTIONS</a>`;
+                    html += `</div>`;
+
+                    // Depart time
+                    if (stop.departTime) {
+                        html += `<div style="font-family:Space Mono,monospace;font-size:11px;color:var(--muted);">Depart: <span style="color:var(--text);">${stop.departTime}</span> (after 30 min charge)</div>`;
+                    }
+
+                    // Alt chargers
+                    if (stop.chargers.length > 1) {
+                        html += `<div style="margin-top:8px;font-family:Space Mono,monospace;font-size:11px;color:var(--muted);">Alternatives: `;
+                        stop.chargers.slice(1).forEach(c => {
+                            html += `<span style="color:${c.prediction==='free'?'var(--green)':'var(--red)'};">${c.operator !== 'unknown' ? c.operator : 'Charger'} (${c.probability_free}% free)</span> &nbsp;`;
+                        });
+                        html += `</div>`;
+                    }
+                }
+
+                if (!stop.isCharge && stop.chargers && stop.chargers.length > 0 && stop.type !== 'end') {
+                    html += `<div style="font-family:Space Mono,monospace;font-size:11px;color:var(--muted);">${stop.chargers.length} charger${stop.chargers.length > 1 ? 's' : ''} found nearby</div>`;
+                }
+
+                html += `</div></div></div>`;
+
+                if (!isLast) {
+                    html += `<div class="route-connector"></div>`;
+                }
+            });
+
+            timeline.innerHTML = html;
+            results.style.display = 'block';
+        }
+
         function toggleFleetMode() {
             fleetMode = !fleetMode;
             const btn = document.getElementById("fleet-toggle");
@@ -403,6 +758,13 @@
                 btn.textContent = "✓ FLEET MODE";
                 document.getElementById("consumer-section").style.display = "none";
                 document.getElementById("fleet-section").style.display = "block";
+                document.getElementById("route-section").style.display = "none";
+                // Reset route mode
+                routeMode = false;
+                const routeBtn = document.getElementById("route-toggle");
+                routeBtn.style.borderColor = "var(--muted)";
+                routeBtn.style.color = "var(--muted)";
+                routeBtn.textContent = "🗺 ROUTE PLANNER";
             } else {
                 btn.style.borderColor = "var(--muted)";
                 btn.style.color = "var(--muted)";
