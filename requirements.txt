@@ -6,4 +6,5 @@ scikit-learn
 numpy
 pgeocode
 geopy
-gunicornstripe
+gunicorn
+stripe
