@@ -77,18 +77,19 @@ def train_model(chargers):
 def get_live_chargers(lat, lon, radius_miles, country):
     try:
         radius_km = radius_miles * 1.60934
-        country_code = 'GB' if country == 'UK' else 'US'
+        country_code = 'GB' if country == 'UK' else ('US' if country == 'US' else None)
         params = {
             'key': OCM_API_KEY,
             'latitude': lat,
             'longitude': lon,
             'distance': radius_km,
             'distanceunit': 'KM',
-            'countrycode': country_code,
             'maxresults': 30,
             'compact': True,
             'verbose': False,
         }
+        if country_code:
+            params['countrycode'] = country_code
         response = requests.get(OCM_URL, params=params, timeout=8)
         if response.status_code != 200:
             return []
@@ -149,15 +150,29 @@ else:
 
 nomi_uk = pgeocode.Nominatim('GB')
 nomi_us = pgeocode.Nominatim('US')
+nomi_de = pgeocode.Nominatim('DE')
+nomi_fr = pgeocode.Nominatim('FR')
+nomi_nl = pgeocode.Nominatim('NL')
+nomi_no = pgeocode.Nominatim('NO')
+nomi_se = pgeocode.Nominatim('SE')
 
 def lookup_location(query):
     query = query.strip().upper()
-    result = nomi_uk.query_postal_code(query)
-    if result is not None and not pd.isna(result.latitude):
-        return float(result.latitude), float(result.longitude), 'UK'
-    result = nomi_us.query_postal_code(query)
-    if result is not None and not pd.isna(result.latitude):
-        return float(result.latitude), float(result.longitude), 'US'
+    for nomi, country in [
+        (nomi_uk, 'UK'),
+        (nomi_us, 'US'),
+        (nomi_de, 'EU'),
+        (nomi_fr, 'EU'),
+        (nomi_nl, 'EU'),
+        (nomi_no, 'EU'),
+        (nomi_se, 'EU'),
+    ]:
+        try:
+            result = nomi.query_postal_code(query)
+            if result is not None and not pd.isna(result.latitude):
+                return float(result.latitude), float(result.longitude), country
+        except:
+            continue
     return None, None, None
 
 @app.route('/')

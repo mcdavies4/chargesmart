@@ -5,13 +5,17 @@ import time
 
 OVERPASS_URL = "http://overpass-api.de/api/interpreter"
 
-# UK and US region bounding boxes [south, west, north, east]
 REGIONS = {
     "uk": (51.0, -2.0, 53.0, 0.5),
-    "us_east": (38.0, -77.0, 42.5, -70.0),      # NY, Boston, DC
-    "us_west": (34.0, -122.5, 47.5, -117.0),     # LA, SF, Seattle
-    "us_texas": (25.5, -100.0, 36.5, -93.5),     # Texas & South
-    "us_midwest": (40.0, -90.0, 43.5, -82.5),    # Chicago, Detroit
+    "us_east": (38.0, -77.0, 42.5, -70.0),
+    "us_west": (34.0, -122.5, 47.5, -117.0),
+    "us_texas": (25.5, -100.0, 36.5, -93.5),
+    "us_midwest": (40.0, -90.0, 43.5, -82.5),
+    "norway": (57.0, 4.0, 71.0, 31.0),
+    "netherlands": (50.7, 3.3, 53.6, 7.2),
+    "germany": (47.3, 5.9, 55.0, 15.0),
+    "sweden": (55.0, 10.9, 69.0, 24.2),
+    "france": (42.3, -4.8, 51.1, 8.2),
 }
 
 def collect_region(name, bbox):
@@ -35,6 +39,14 @@ def collect_region(name, bbox):
         print(f"  {name}: Error - {e}")
         return []
 
+def get_country(name):
+    if name.startswith('us_'):
+        return 'US'
+    elif name in ['norway', 'netherlands', 'germany', 'sweden', 'france']:
+        return 'EU'
+    else:
+        return 'UK'
+
 def collect_all():
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     date = datetime.now().strftime("%Y%m%d")
@@ -43,12 +55,11 @@ def collect_all():
     all_chargers = []
     for name, bbox in REGIONS.items():
         chargers = collect_region(name, bbox)
-        # Tag each charger with its region/country
         for c in chargers:
             c['region'] = name
-            c['country'] = 'US' if name.startswith('us_') else 'UK'
+            c['country'] = get_country(name)
         all_chargers.extend(chargers)
-        time.sleep(3)  # Be polite to the API
+        time.sleep(3)
 
     snapshot = {
         "timestamp": timestamp,
@@ -62,7 +73,7 @@ def collect_all():
     print(f"  Total: {len(all_chargers)} chargers saved to {filename}")
 
 if __name__ == "__main__":
-    print("ChargeSmart Collector — UK + US")
+    print("ChargeSmart Collector - UK + US + Europe")
     print("Collecting every 10 minutes. Press Ctrl+C to stop.\n")
     while True:
         collect_all()
