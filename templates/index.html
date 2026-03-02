@@ -191,6 +191,7 @@
             .schedule-form { grid-template-columns: 1fr; }
         }
     </style>
+    <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
     <div class="grid-bg"></div>
@@ -1208,5 +1209,246 @@
             document.getElementById('install-banner').style.display = 'none';
         });
     </script>
+
+    <!-- UPGRADE MODAL -->
+    <div id="upgrade-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:1000;align-items:center;justify-content:center;">
+        <div style="background:#0d0d14;border:1px solid #2a2a3a;border-radius:16px;padding:32px;max-width:560px;width:90%;position:relative;">
+            <button onclick="closeModal()" style="position:absolute;top:16px;right:16px;background:transparent;border:none;color:#6b6b80;font-size:20px;cursor:pointer;">✕</button>
+
+            <div style="font-family:Space Mono,monospace;font-size:11px;color:#00ff87;letter-spacing:2px;margin-bottom:8px;" id="modal-reason">UPGRADE REQUIRED</div>
+            <h2 style="font-size:22px;font-weight:800;margin-bottom:8px;" id="modal-title">Unlock this feature</h2>
+            <p style="color:#6b6b80;font-size:14px;line-height:1.6;margin-bottom:24px;" id="modal-desc">Get unlimited access to all ChargeSmart features.</p>
+
+            <!-- Email input -->
+            <div style="margin-bottom:20px;">
+                <label style="font-family:Space Mono,monospace;font-size:11px;color:#6b6b80;letter-spacing:1px;display:block;margin-bottom:6px;">YOUR EMAIL</label>
+                <input type="email" id="checkout-email" placeholder="your@email.com" style="width:100%;background:#0a0a0f;border:1px solid #2a2a3a;border-radius:8px;padding:12px;color:#fff;font-size:14px;box-sizing:border-box;">
+            </div>
+
+            <!-- Plans -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+                <div id="pro-plan-card" onclick="selectPlan('pro')" style="border:2px solid #00ff87;border-radius:12px;padding:16px;cursor:pointer;background:rgba(0,255,135,0.05);">
+                    <div style="font-family:Space Mono,monospace;font-size:10px;color:#00ff87;letter-spacing:2px;margin-bottom:6px;">PRO</div>
+                    <div style="font-size:22px;font-weight:800;margin-bottom:4px;">£9.99<span style="font-size:13px;color:#6b6b80;">/mo</span></div>
+                    <div style="font-size:12px;color:#6b6b80;line-height:1.6;">Unlimited searches<br>Route planner<br>Europe coverage<br>Priority support</div>
+                </div>
+                <div id="fleet-plan-card" onclick="selectPlan('fleet')" style="border:1px solid #2a2a3a;border-radius:12px;padding:16px;cursor:pointer;">
+                    <div style="font-family:Space Mono,monospace;font-size:10px;color:#6b6b80;letter-spacing:2px;margin-bottom:6px;">FLEET</div>
+                    <div style="font-size:22px;font-weight:800;margin-bottom:4px;">£29.99<span style="font-size:13px;color:#6b6b80;">/mo</span></div>
+                    <div style="font-size:12px;color:#6b6b80;line-height:1.6;">Everything in Pro<br>Fleet mode<br>Schedule planner<br>Multi-vehicle</div>
+                </div>
+            </div>
+
+            <button id="checkout-btn" onclick="startCheckout()" style="width:100%;background:#00ff87;color:#0a0a0f;border:none;border-radius:8px;padding:14px;font-family:Space Mono,monospace;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer;margin-bottom:12px;">
+                SUBSCRIBE — £9.99/MONTH
+            </button>
+            <div style="text-align:center;font-family:Space Mono,monospace;font-size:11px;color:#6b6b80;">
+                Already subscribed? <a href="#" onclick="restoreAccess()" style="color:#00ff87;text-decoration:none;">Restore access</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUCCESS BANNER -->
+    <div id="success-banner" style="display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#00ff87;color:#0a0a0f;padding:12px 24px;border-radius:8px;font-family:Space Mono,monospace;font-size:12px;font-weight:700;z-index:2000;letter-spacing:1px;">
+        ✓ SUBSCRIPTION ACTIVE — WELCOME TO CHARGESMART PRO!
+    </div>
+
+    <script>
+        // PAYWALL SYSTEM
+        let currentPlan = localStorage.getItem('cs_plan') || 'free';
+        let userEmail = localStorage.getItem('cs_email') || '';
+        let searchCount = parseInt(localStorage.getItem('cs_searches') || '0');
+        let searchDate = localStorage.getItem('cs_date') || '';
+        let selectedPlan = 'pro';
+        const FREE_SEARCH_LIMIT = 3;
+
+        // Check URL for success/cancelled
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('success') === 'true') {
+            const plan = urlParams.get('plan') || 'pro';
+            const email = urlParams.get('email') || '';
+            currentPlan = plan;
+            userEmail = email;
+            localStorage.setItem('cs_plan', plan);
+            localStorage.setItem('cs_email', email);
+            showSuccessBanner(plan);
+            window.history.replaceState({}, '', '/');
+        }
+
+        function showSuccessBanner(plan) {
+            const banner = document.getElementById('success-banner');
+            banner.textContent = `✓ WELCOME TO CHARGESMART ${plan.toUpperCase()}!`;
+            banner.style.display = 'block';
+            setTimeout(() => banner.style.display = 'none', 5000);
+        }
+
+        function isPremium() {
+            return currentPlan === 'pro' || currentPlan === 'fleet';
+        }
+
+        function isFleet() {
+            return currentPlan === 'fleet';
+        }
+
+        function checkSearchLimit() {
+            const today = new Date().toDateString();
+            if (searchDate !== today) {
+                searchCount = 0;
+                searchDate = today;
+                localStorage.setItem('cs_date', today);
+                localStorage.setItem('cs_searches', '0');
+            }
+            return searchCount;
+        }
+
+        function incrementSearch() {
+            searchCount++;
+            localStorage.setItem('cs_searches', searchCount.toString());
+        }
+
+        function showUpgradeModal(reason) {
+            const titles = {
+                'searches': 'You have used your 3 free searches today',
+                'route': 'Route Planner is a Pro feature',
+                'fleet': 'Fleet Mode is a Pro/Fleet feature',
+                'europe': 'Europe coverage is a Pro feature',
+            };
+            const descs = {
+                'searches': 'Free users get 3 searches per day. Upgrade to Pro for unlimited searches across UK, US and Europe.',
+                'route': 'Plan your entire charging journey with AI-predicted stops. Upgrade to Pro to unlock.',
+                'fleet': 'Manage your entire EV fleet with AI scheduling. Upgrade to Pro or Fleet to unlock.',
+                'europe': 'Search chargers across Norway, Germany, Netherlands, Sweden and France. Upgrade to Pro to unlock.',
+            };
+            document.getElementById('modal-reason').textContent = reason.toUpperCase() + ' LIMIT';
+            document.getElementById('modal-title').textContent = titles[reason] || 'Upgrade to continue';
+            document.getElementById('modal-desc').textContent = descs[reason] || 'Unlock all ChargeSmart features.';
+            document.getElementById('upgrade-modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('upgrade-modal').style.display = 'none';
+        }
+
+        function selectPlan(plan) {
+            selectedPlan = plan;
+            const proCard = document.getElementById('pro-plan-card');
+            const fleetCard = document.getElementById('fleet-plan-card');
+            const btn = document.getElementById('checkout-btn');
+            if (plan === 'pro') {
+                proCard.style.border = '2px solid #00ff87';
+                proCard.style.background = 'rgba(0,255,135,0.05)';
+                fleetCard.style.border = '1px solid #2a2a3a';
+                fleetCard.style.background = 'transparent';
+                btn.textContent = 'SUBSCRIBE — £9.99/MONTH';
+            } else {
+                fleetCard.style.border = '2px solid #00ff87';
+                fleetCard.style.background = 'rgba(0,255,135,0.05)';
+                proCard.style.border = '1px solid #2a2a3a';
+                proCard.style.background = 'transparent';
+                btn.textContent = 'SUBSCRIBE — £29.99/MONTH';
+            }
+        }
+
+        async function startCheckout() {
+            const email = document.getElementById('checkout-email').value.trim();
+            if (!email) {
+                alert('Please enter your email address');
+                return;
+            }
+            const btn = document.getElementById('checkout-btn');
+            btn.textContent = 'Loading...';
+            btn.disabled = true;
+            try {
+                const res = await fetch('/create-checkout-session', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({plan: selectedPlan, email})
+                });
+                const data = await res.json();
+                if (data.url) {
+                    window.location.href = data.url;
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                    btn.disabled = false;
+                    btn.textContent = selectedPlan === 'pro' ? 'SUBSCRIBE — £9.99/MONTH' : 'SUBSCRIBE — £29.99/MONTH';
+                }
+            } catch(e) {
+                alert('Connection error. Please try again.');
+                btn.disabled = false;
+                btn.textContent = selectedPlan === 'pro' ? 'SUBSCRIBE — £9.99/MONTH' : 'SUBSCRIBE — £29.99/MONTH';
+            }
+        }
+
+        async function restoreAccess() {
+            const email = document.getElementById('checkout-email').value.trim();
+            if (!email) { alert('Enter your email to restore access'); return; }
+            const res = await fetch('/check-subscription', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email})
+            });
+            const data = await res.json();
+            if (data.plan !== 'free') {
+                currentPlan = data.plan;
+                userEmail = email;
+                localStorage.setItem('cs_plan', data.plan);
+                localStorage.setItem('cs_email', email);
+                closeModal();
+                showSuccessBanner(data.plan);
+            } else {
+                alert('No active subscription found for ' + email);
+            }
+        }
+
+        // Override search to check limit
+        const originalFindChargers = window.findChargers;
+        document.addEventListener('DOMContentLoaded', function() {
+            // Patch the find chargers button
+            const findBtn = document.querySelector('.predict-btn');
+            if (findBtn && findBtn.id !== 'route-btn') {
+                findBtn.addEventListener('click', function(e) {
+                    if (!isPremium()) {
+                        const count = checkSearchLimit();
+                        if (count >= FREE_SEARCH_LIMIT) {
+                            e.stopImmediatePropagation();
+                            showUpgradeModal('searches');
+                            return false;
+                        }
+                        incrementSearch();
+                    }
+                }, true);
+            }
+
+            // Show plan badge in header
+            if (isPremium()) {
+                const badge = document.createElement('div');
+                badge.style.cssText = 'font-family:Space Mono,monospace;font-size:10px;color:#00ff87;letter-spacing:2px;padding:4px 10px;border:1px solid rgba(0,255,135,0.3);border-radius:20px;';
+                badge.textContent = currentPlan.toUpperCase();
+                const header = document.querySelector('header');
+                if (header) header.appendChild(badge);
+            }
+        });
+
+        // Gate route planner
+        const originalToggleRoute = window.toggleRouteMode;
+        function toggleRouteMode() {
+            if (!isPremium()) {
+                showUpgradeModal('route');
+                return;
+            }
+            originalToggleRoute && originalToggleRoute();
+        }
+
+        // Gate fleet mode
+        const originalToggleFleet = window.toggleFleetMode;
+        function toggleFleetMode() {
+            if (!isPremium()) {
+                showUpgradeModal('fleet');
+                return;
+            }
+            originalToggleFleet && originalToggleFleet();
+        }
+    </script>
+
 </body>
 </html>
