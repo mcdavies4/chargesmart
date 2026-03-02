@@ -105,6 +105,10 @@ def get_live_chargers(lat, lon, radius_miles, country):
                 op_info = poi.get('OperatorInfo')
                 if op_info and op_info.get('Title'):
                     operator = op_info['Title'][:30]
+                elif addr.get('Title'):
+                    operator = addr['Title'][:30]
+                elif addr.get('AddressLine1'):
+                    operator = addr['AddressLine1'][:30]
                 connections = poi.get('Connections', [])
                 capacity = max(len(connections), 1)
                 status_type = poi.get('StatusType')
@@ -275,4 +279,8 @@ def robots():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
+<<<<<<< HEAD
     app.run(host='0.0.0.0', port=port, debug=False)
+=======
+    app.run(host='0.0.0.0', port=port, debug=False)
+>>>>>>> 4a4569d15869306ab908ca80a3174a02affad566
