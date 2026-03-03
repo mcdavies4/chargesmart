@@ -111,11 +111,13 @@ def enrich():
         writer.writeheader()
         writer.writerows(rows)
 
-    uk_count = sum(1 for r in rows if r['country'] == 'UK')
+     uk_count = sum(1 for r in rows if r['country'] == 'UK')
     us_count = sum(1 for r in rows if r['country'] == 'US')
+    eu_count = sum(1 for r in rows if r['country'] == 'EU')
     print(f"\nDone! {len(rows)} total rows")
     print(f"  UK: {uk_count} rows")
     print(f"  US: {us_count} rows")
+    print(f"  EU: {eu_count} rows")
     print(f"Saved to enriched_data.csv")
 
 if __name__ == "__main__":

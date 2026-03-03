@@ -1,0 +1,1 @@
+hour,day_of_week,is_weekend,capacity,lat,lon,country_code,location_code
