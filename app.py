@@ -1,16 +1,42 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, redirect
 import pandas as pd
 import numpy as np
 import pickle
 import os
 import requests
+import json
+import stripe
 from geopy.distance import geodesic
 import pgeocode
 
 app = Flask(__name__, static_folder='static')
 
+stripe.api_key = os.environ.get('STRIPE_SECRET_KEY', '')
+STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
+PRO_PRICE_ID = os.environ.get('STRIPE_PRO_PRICE_ID', '')
+FLEET_PRICE_ID = os.environ.get('STRIPE_FLEET_PRICE_ID', '')
+
 OCM_API_KEY = 'd29bb079-0234-40d8-b0af-a2bb55a7d399'
 OCM_URL = 'https://api.openchargemap.io/v3/poi'
+
+SUBSCRIBERS = {}
+
+def load_subscribers():
+    global SUBSCRIBERS
+    if os.path.exists('subscribers.json'):
+        with open('subscribers.json') as f:
+            SUBSCRIBERS = json.load(f)
+
+def save_subscribers():
+    with open('subscribers.json', 'w') as f:
+        json.dump(SUBSCRIBERS, f)
+
+def get_plan(email):
+    if not email:
+        return 'free'
+    return SUBSCRIBERS.get(email.lower(), 'free')
+
+load_subscribers()
 
 def load_chargers():
     if os.path.exists('enriched_data.csv'):
@@ -175,7 +201,6 @@ def lookup_location(query):
             continue
     return None, None, None
 
-# Register payment routes
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -274,6 +299,65 @@ def nearby():
         return jsonify({'total': len(results), 'chargers': results})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
+@app.route('/create-checkout-session', methods=['POST'])
+def create_checkout_session():
+    try:
+        data = request.get_json()
+        plan = data.get('plan', 'pro')
+        email = data.get('email', '')
+        price_id = FLEET_PRICE_ID if plan == 'fleet' else PRO_PRICE_ID
+        base_url = request.host_url.rstrip('/')
+        session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            mode='subscription',
+            customer_email=email if email else None,
+            line_items=[{'price': price_id, 'quantity': 1}],
+            success_url=f'{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}&plan={plan}&email={email}',
+            cancel_url=f'{base_url}/?cancelled=true',
+            metadata={'plan': plan, 'email': email}
+        )
+        return jsonify({'url': session.url})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/payment-success')
+def payment_success():
+    session_id = request.args.get('session_id')
+    plan = request.args.get('plan', 'pro')
+    email = request.args.get('email', '')
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+        if session.payment_status == 'paid' or session.status == 'complete':
+            customer_email = session.customer_email or email
+            if customer_email:
+                SUBSCRIBERS[customer_email.lower()] = plan
+                save_subscribers()
+            return redirect(f'/?success=true&plan={plan}&email={customer_email}')
+    except Exception as e:
+        print(f"Payment verification error: {e}")
+    return redirect('/?success=true&plan=' + plan)
+
+@app.route('/check-subscription', methods=['POST'])
+def check_subscription():
+    data = request.get_json()
+    email = data.get('email', '').lower()
+    plan = get_plan(email)
+    return jsonify({'plan': plan, 'email': email})
+
+@app.route('/stripe-key')
+def stripe_key():
+    key = os.environ.get('STRIPE_SECRET_KEY', 'NOT FOUND')
+    pub = os.environ.get('STRIPE_PUBLISHABLE_KEY', 'NOT FOUND')
+    pro = os.environ.get('STRIPE_PRO_PRICE_ID', 'NOT FOUND')
+    fleet = os.environ.get('STRIPE_FLEET_PRICE_ID', 'NOT FOUND')
+    return jsonify({
+        'secret_key_found': key != 'NOT FOUND',
+        'secret_key_prefix': key[:12] if key != 'NOT FOUND' else 'NOT FOUND',
+        'publishable_key_found': pub != 'NOT FOUND',
+        'pro_price_found': pro != 'NOT FOUND',
+        'fleet_price_found': fleet != 'NOT FOUND',
+    })
 
 @app.route('/static/manifest.json')
 def manifest():
