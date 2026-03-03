@@ -199,7 +199,8 @@
         <header>
             <div style="display:flex;justify-content:space-between;align-items:center;">
                 <div class="logo">⚡ ChargeSmart UK</div>
-                <div style="display:flex;gap:8px;">
+                <div style="display:flex;gap:8px;align-items:center;">
+                <button onclick="startDemo()" style="padding:8px 16px;background:rgba(0,255,135,0.1);border:1px solid rgba(0,255,135,0.4);border-radius:20px;color:#00ff87;font-family:Space Mono,monospace;font-size:11px;cursor:pointer;letter-spacing:2px;">▶ DEMO</button>
                 <button id="route-toggle" class="fleet-toggle-btn" onclick="toggleRouteMode()">🗺 ROUTE PLANNER</button>
                 <button id="fleet-toggle" class="fleet-toggle-btn" onclick="toggleFleetMode()">FLEET MODE</button>
             </div>
@@ -1448,6 +1449,214 @@
             }
             originalToggleFleet && originalToggleFleet();
         }
+    </script>
+
+
+    <!-- DEMO OVERLAY -->
+    <div id="demo-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;pointer-events:none;"></div>
+
+    <!-- DEMO TOOLTIP -->
+    <div id="demo-tooltip" style="display:none;position:fixed;z-index:10000;max-width:300px;background:#0d0d14;border:1px solid #00ff87;border-radius:12px;padding:20px;box-shadow:0 0 40px rgba(0,255,135,0.2);">
+        <div style="font-family:Space Mono,monospace;font-size:10px;color:#00ff87;letter-spacing:2px;margin-bottom:6px;" id="demo-step-label">STEP 1 OF 6</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:8px;" id="demo-title">Welcome to ChargeSmart</div>
+        <div style="font-size:13px;color:#9b9baf;line-height:1.6;margin-bottom:16px;" id="demo-desc">Let us show you how ChargeSmart works in 6 quick steps.</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+            <button onclick="prevDemo()" id="demo-prev" style="background:transparent;border:1px solid #2a2a3a;border-radius:8px;padding:8px 14px;color:#6b6b80;font-family:Space Mono,monospace;font-size:11px;cursor:pointer;">← BACK</button>
+            <div style="display:flex;gap:4px;" id="demo-dots"></div>
+            <button onclick="nextDemo()" id="demo-next" style="background:#00ff87;border:none;border-radius:8px;padding:8px 14px;color:#0a0a0f;font-family:Space Mono,monospace;font-size:11px;font-weight:700;cursor:pointer;">NEXT →</button>
+        </div>
+        <button onclick="endDemo()" style="position:absolute;top:10px;right:12px;background:transparent;border:none;color:#6b6b80;font-size:16px;cursor:pointer;">✕</button>
+    </div>
+
+    <!-- HIGHLIGHT RING -->
+    <div id="demo-highlight" style="display:none;position:fixed;z-index:9998;border:2px solid #00ff87;border-radius:12px;box-shadow:0 0 0 4000px rgba(0,0,0,0.6);pointer-events:none;transition:all 0.4s ease;"></div>
+
+    <script>
+    const demoSteps = [
+        {
+            label: 'STEP 1 OF 6',
+            title: 'Welcome to ChargeSmart ⚡',
+            desc: 'ChargeSmart uses AI to predict which EV chargers near you will be free before you arrive. Let us show you how it works.',
+            target: null,
+            position: 'center',
+            action: null
+        },
+        {
+            label: 'STEP 2 OF 6',
+            title: 'Search by postcode or ZIP',
+            desc: 'Enter your UK postcode (e.g. SW1A 1AA) or US ZIP code (e.g. 90210). ChargeSmart auto-detects your country. You can also use GPS.',
+            target: '#postcode',
+            position: 'bottom',
+            action: () => {
+                document.getElementById('consumer-section').style.display = 'block';
+                document.getElementById('fleet-section').style.display = 'none';
+                document.getElementById('route-section').style.display = 'none';
+                const el = document.getElementById('postcode');
+                if (el) { el.value = 'SW1A 1AA'; el.style.borderColor = '#00ff87'; }
+            }
+        },
+        {
+            label: 'STEP 3 OF 6',
+            title: 'Set your arrival time',
+            desc: 'Tell ChargeSmart what time you plan to arrive. The AI uses this to predict exactly how busy chargers will be when YOU get there — not right now.',
+            target: '#hour',
+            position: 'bottom',
+            action: () => {
+                const el = document.getElementById('hour');
+                if (el) { el.value = '17'; el.style.borderColor = '#00ff87'; }
+            }
+        },
+        {
+            label: 'STEP 4 OF 6',
+            title: 'AI predicts availability',
+            desc: 'ChargeSmart shows nearby chargers sorted by distance. Each one shows: operator, number of bays, predicted FREE or BUSY, and confidence percentage.',
+            target: '.predict-btn',
+            position: 'top',
+            action: () => {
+                const btn = document.querySelector('.predict-btn');
+                if (btn) {
+                    btn.style.boxShadow = '0 0 20px rgba(0,255,135,0.5)';
+                    btn.click();
+                }
+            }
+        },
+        {
+            label: 'STEP 5 OF 6',
+            title: 'Plan your route ↗',
+            desc: 'The Route Planner works out your entire journey — including charging stops along the way. It predicts availability at each stop for your exact arrival time.',
+            target: '#route-toggle',
+            position: 'bottom',
+            action: () => {
+                const btn = document.getElementById('route-toggle');
+                if (btn) btn.style.boxShadow = '0 0 20px rgba(0,255,135,0.5)';
+            }
+        },
+        {
+            label: 'STEP 6 OF 6',
+            title: 'Manage your EV fleet 🚐',
+            desc: 'Fleet Mode lets you add all your vehicles, set shift times, and get an AI-generated charging schedule for your whole fleet. Perfect for logistics and delivery companies.',
+            target: '#fleet-toggle',
+            position: 'bottom',
+            action: () => {
+                const btn = document.getElementById('fleet-toggle');
+                if (btn) btn.style.boxShadow = '0 0 20px rgba(0,255,135,0.5)';
+            }
+        }
+    ];
+
+    let demoStep = 0;
+    let demoActive = false;
+
+    function startDemo() {
+        demoActive = true;
+        demoStep = 0;
+        document.getElementById('demo-tooltip').style.display = 'block';
+        document.getElementById('demo-highlight').style.display = 'block';
+        renderDemoStep();
+    }
+
+    function endDemo() {
+        demoActive = false;
+        document.getElementById('demo-tooltip').style.display = 'none';
+        document.getElementById('demo-highlight').style.display = 'none';
+        // Reset styles
+        document.querySelectorAll('input, select, button').forEach(el => {
+            el.style.borderColor = '';
+            el.style.boxShadow = '';
+        });
+    }
+
+    function nextDemo() {
+        if (demoStep < demoSteps.length - 1) {
+            demoStep++;
+            renderDemoStep();
+        } else {
+            endDemo();
+        }
+    }
+
+    function prevDemo() {
+        if (demoStep > 0) {
+            demoStep--;
+            renderDemoStep();
+        }
+    }
+
+    function renderDemoStep() {
+        const step = demoSteps[demoStep];
+
+        // Reset previous highlights
+        document.querySelectorAll('input, select, button').forEach(el => {
+            el.style.borderColor = '';
+            el.style.boxShadow = '';
+        });
+
+        // Update tooltip content
+        document.getElementById('demo-step-label').textContent = step.label;
+        document.getElementById('demo-title').textContent = step.title;
+        document.getElementById('demo-desc').textContent = step.desc;
+
+        // Update dots
+        const dots = document.getElementById('demo-dots');
+        dots.innerHTML = demoSteps.map((_, i) =>
+            `<div style="width:6px;height:6px;border-radius:50%;background:${i === demoStep ? '#00ff87' : '#2a2a3a'};"></div>`
+        ).join('');
+
+        // Update buttons
+        document.getElementById('demo-prev').style.opacity = demoStep === 0 ? '0.3' : '1';
+        document.getElementById('demo-next').textContent = demoStep === demoSteps.length - 1 ? 'FINISH ✓' : 'NEXT →';
+
+        // Run action
+        if (step.action) step.action();
+
+        // Position tooltip and highlight
+        if (step.target && step.position !== 'center') {
+            const target = document.querySelector(step.target);
+            if (target) {
+                const rect = target.getBoundingClientRect();
+                const highlight = document.getElementById('demo-highlight');
+                const tooltip = document.getElementById('demo-tooltip');
+
+                // Position highlight
+                highlight.style.display = 'block';
+                highlight.style.left = (rect.left - 8) + 'px';
+                highlight.style.top = (rect.top - 8) + 'px';
+                highlight.style.width = (rect.width + 16) + 'px';
+                highlight.style.height = (rect.height + 16) + 'px';
+
+                // Scroll to target
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                // Position tooltip
+                setTimeout(() => {
+                    const tRect = target.getBoundingClientRect();
+                    if (step.position === 'bottom') {
+                        tooltip.style.top = (tRect.bottom + 16) + 'px';
+                        tooltip.style.left = Math.max(10, Math.min(tRect.left, window.innerWidth - 320)) + 'px';
+                    } else {
+                        tooltip.style.top = (tRect.top - 200) + 'px';
+                        tooltip.style.left = Math.max(10, Math.min(tRect.left, window.innerWidth - 320)) + 'px';
+                    }
+                    tooltip.style.transform = 'none';
+                }, 300);
+            }
+        } else {
+            // Center tooltip
+            const highlight = document.getElementById('demo-highlight');
+            highlight.style.display = 'none';
+            const tooltip = document.getElementById('demo-tooltip');
+            tooltip.style.top = '50%';
+            tooltip.style.left = '50%';
+            tooltip.style.transform = 'translate(-50%, -50%)';
+        }
+    }
+
+    // Close demo on escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && demoActive) endDemo();
+        if (e.key === 'ArrowRight' && demoActive) nextDemo();
+        if (e.key === 'ArrowLeft' && demoActive) prevDemo();
+    });
     </script>
 
 </body>
