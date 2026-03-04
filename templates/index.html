@@ -183,12 +183,78 @@
         .availability-fill { height: 100%; border-radius: 3px; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @media (max-width: 700px) {
-            .form-grid { grid-template-columns: 1fr; }
-            .charger-item { grid-template-columns: auto 1fr; }
-            .charger-prediction { display: none; }
-            .fleet-stats { grid-template-columns: 1fr; }
+            /* Layout */
+            .container { padding: 0 12px; }
+            .card { padding: 16px; border-radius: 12px; margin-bottom: 14px; }
+
+            /* Header */
+            header { padding: 16px 0 20px; }
+            header h1 { font-size: 32px; line-height: 1.2; margin: 10px 0 6px; }
+            header .subtitle { font-size: 11px; }
+            .logo { font-size: 16px; }
+
+            /* Nav buttons — scrollable row */
+            header > div > div:last-child {
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                overflow-x: auto !important;
+                gap: 6px !important;
+                padding-bottom: 4px !important;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+            }
+            header > div > div:last-child::-webkit-scrollbar { display: none; }
+            .fleet-toggle-btn {
+                padding: 6px 10px !important;
+                font-size: 9px !important;
+                white-space: nowrap !important;
+                flex-shrink: 0 !important;
+            }
+
+            /* Forms */
+            .form-grid { grid-template-columns: 1fr; gap: 12px; }
+            .form-group label { font-size: 10px; }
+            input, select { font-size: 14px !important; padding: 10px 12px !important; }
+            .predict-btn { font-size: 12px; padding: 14px; letter-spacing: 2px; }
+
+            /* Charger cards */
+            .charger-item { grid-template-columns: auto 1fr; gap: 10px; padding: 12px; }
+            .charger-prediction { display: flex; font-size: 11px; }
+            .charger-info { font-size: 12px; }
+            .charger-meta { font-size: 10px; gap: 6px; flex-wrap: wrap; }
+            .availability-bar { height: 6px; }
+
+            /* Stats grid */
+            .fleet-stats { grid-template-columns: 1fr 1fr; gap: 10px; }
             .add-vehicle-grid { grid-template-columns: 1fr; }
             .schedule-form { grid-template-columns: 1fr; }
+
+            /* Carbon stats */
+            #carbon-stats { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+            #carbon-lifetime { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+
+            /* Route planner */
+            #route-section .form-grid { grid-template-columns: 1fr; }
+            .route-stop { padding: 12px; }
+
+            /* Paywall modal */
+            #upgrade-modal > div { padding: 20px 16px !important; margin: 10px !important; }
+            #upgrade-modal h2 { font-size: 22px !important; }
+            .plan-card { padding: 14px !important; }
+            .plan-card h3 { font-size: 18px !important; }
+
+            /* Card title */
+            .card-title { font-size: 11px; margin-bottom: 14px; }
+
+            /* Demo tooltip */
+            #demo-tooltip { max-width: calc(100vw - 24px) !important; left: 12px !important; right: 12px !important; }
+        }
+
+        @media (max-width: 380px) {
+            header h1 { font-size: 26px; }
+            #carbon-stats { grid-template-columns: 1fr !important; }
+            #carbon-lifetime { grid-template-columns: 1fr !important; }
+            .fleet-stats { grid-template-columns: 1fr; }
         }
     </style>
     <script src="https://js.stripe.com/v3/"></script>

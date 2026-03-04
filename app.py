@@ -308,6 +308,9 @@ def create_checkout_session():
         email = data.get('email', '')
         price_id = FLEET_PRICE_ID if plan == 'fleet' else PRO_PRICE_ID
         base_url = request.host_url.rstrip('/')
+        # 14-day free trial for all plans
+        subscription_data = {'trial_period_days': 14}
+
         session = stripe.checkout.Session.create(
             payment_method_types=['card'],
             mode='subscription',
@@ -315,7 +318,8 @@ def create_checkout_session():
             line_items=[{'price': price_id, 'quantity': 1}],
             success_url=f'{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}&plan={plan}&email={email}',
             cancel_url=f'{base_url}/?cancelled=true',
-            metadata={'plan': plan, 'email': email}
+            metadata={'plan': plan, 'email': email},
+            subscription_data=subscription_data if subscription_data else None
         )
         return jsonify({'url': session.url})
     except Exception as e:
