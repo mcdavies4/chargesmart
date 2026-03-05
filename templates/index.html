@@ -2175,7 +2175,6 @@ var costMode = false;
 function toggleCostMode() {
     costMode = !costMode;
     var btn = document.getElementById('cost-toggle');
-<<<<<<< HEAD
     if (costMode) {
         // Hide all other sections
         var allSections = ['consumer-section','fleet-section','route-section','carbon-section'];
@@ -2207,58 +2206,54 @@ function toggleCostMode() {
         btn.style.borderColor = 'var(--muted)';
         btn.style.color = 'var(--muted)';
         btn.textContent = '💰 COST CALC';
-=======
-    var sections = ['consumer-section','fleet-section','route-section','carbon-section','cost-section'];
-    if (costMode) {
-        btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)'; btn.textContent = '✓ COST CALC';
-        sections.forEach(function(s) { document.getElementById(s).style.display = s === 'cost-section' ? 'block' : 'none'; });
-        fleetMode = false; carbonMode = false; routeMode = false;
-        ['fleet-toggle','carbon-toggle','route-toggle'].forEach(function(id) {
-            var b = document.getElementById(id); if (b) { b.style.borderColor='var(--muted)'; b.style.color='var(--muted)'; }
-        });
-        document.getElementById('fleet-toggle').textContent = 'FLEET MODE';
-        document.getElementById('carbon-toggle').textContent = '🌱 CARBON';
-        document.getElementById('route-toggle').textContent = '🗺 ROUTE PLANNER';
-    } else {
-        btn.style.borderColor = 'var(--muted)'; btn.style.color = 'var(--muted)'; btn.textContent = '💰 COST CALC';
-        document.getElementById('cost-section').style.display = 'none';
-        document.getElementById('consumer-section').style.display = 'block';
->>>>>>> c235c8205cc52b3e13c1d6d0bc22b465f34f5b54
     }
 }
 
 function calculateJourneyCost() {
-    var miles = document.getElementById('cost-miles').value;
+    var milesVal = document.getElementById('cost-miles').value;
     var car = document.getElementById('cost-car').value;
     var currency = document.getElementById('cost-currency').value;
-    if (!miles || miles <= 0) { alert('Please enter journey distance'); return; }
-    fetch('/journey-cost', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ miles: parseFloat(miles), car_model: car, currency: currency })
-    }).then(function(r) { return r.json(); }).then(function(d) {
-        if (d.error) { alert(d.error); return; }
-        var sym = d.symbol;
-        document.getElementById('cost-stats').innerHTML = [
-            { icon: '⚡', value: sym + d.ev_cost.toFixed(2), label: 'EV Cost', sub: d.kwh_needed + ' kWh needed' },
-            { icon: '⛽', value: sym + d.petrol_cost.toFixed(2), label: 'Petrol Cost', sub: 'equivalent journey' },
-            { icon: '💰', value: sym + d.saving.toFixed(2), label: 'You Save', sub: 'per trip' },
-            { icon: '💨', value: d.co2_saved + 'kg', label: 'CO2 Saved', sub: 'vs petrol' },
-        ].map(function(s) {
-            return '<div style="background:var(--dark);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center;">' +
-                '<div style="font-size:26px;margin-bottom:6px;">' + s.icon + '</div>' +
-                '<div style="font-size:22px;font-weight:800;color:var(--green);margin-bottom:4px;">' + s.value + '</div>' +
-                '<div style="font-family:Space Mono,monospace;font-size:11px;color:var(--text);">' + s.label + '</div>' +
-                '<div style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);margin-top:2px;">' + s.sub + '</div></div>';
-        }).join('');
-        var pct = Math.round((d.saving / d.petrol_cost) * 100);
-        document.getElementById('cost-summary').innerHTML =
-            '<div style="font-size:13px;color:#9b9baf;margin-bottom:6px;">Driving electric saves you</div>' +
-            '<div style="font-size:32px;font-weight:800;color:var(--green);">' + pct + '% less</div>' +
-            '<div style="font-size:12px;color:#9b9baf;margin-top:4px;">than the equivalent petrol journey</div>';
-        document.getElementById('cost-results').style.display = 'block';
-        document.getElementById('cost-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+    var miles = parseFloat(milesVal);
+    if (!miles || miles <= 0) { alert('Please enter journey distance in miles'); return; }
+
+    // All calculations client-side - no API needed
+    var EV_EFF = { average: 3.5, nissan_leaf: 3.5, tesla_model3: 4.0, tesla_modelx: 2.8, vw_id3: 3.8 };
+    var ELEC   = { gbp: 0.28, usd: 0.16, eur: 0.22 };
+    var PETROL = { gbp: 0.155, usd: 0.12, eur: 0.14 };
+    var SYMS   = { gbp: '£', usd: '$', eur: '€' };
+    var PETROL_MPG = 35;
+    var LITRES_PER_GALLON = 4.546;
+
+    var mpkwh      = EV_EFF[car] || 3.5;
+    var kwhNeeded  = miles / mpkwh;
+    var evCost     = kwhNeeded * ELEC[currency];
+    var petrolCost = (miles / PETROL_MPG) * PETROL[currency] * LITRES_PER_GALLON;
+    var saving     = petrolCost - evCost;
+    var co2Saved   = (0.404 - 0.069) * miles;
+    var pct        = Math.round((saving / petrolCost) * 100);
+    var sym        = SYMS[currency];
+
+    function statCard(icon, val, label, sub) {
+        return '<div style="background:var(--dark);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center;">' +
+            '<div style="font-size:28px;margin-bottom:6px;">' + icon + '</div>' +
+            '<div style="font-size:22px;font-weight:800;color:var(--green);margin-bottom:4px;">' + val + '</div>' +
+            '<div style="font-family:Space Mono,monospace;font-size:11px;color:var(--text);">' + label + '</div>' +
+            '<div style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);margin-top:2px;">' + sub + '</div></div>';
+    }
+
+    document.getElementById('cost-stats').innerHTML =
+        statCard('⚡', sym + evCost.toFixed(2),     'EV Cost',     kwhNeeded.toFixed(1) + ' kWh needed') +
+        statCard('⛽', sym + petrolCost.toFixed(2), 'Petrol Cost', 'equivalent journey') +
+        statCard('💰', sym + saving.toFixed(2),     'You Save',    'per trip') +
+        statCard('💨', co2Saved.toFixed(1) + 'kg', 'CO2 Saved',   'vs petrol car');
+
+    document.getElementById('cost-summary').innerHTML =
+        '<div style="font-size:13px;color:#9b9baf;margin-bottom:8px;">Driving electric saves you</div>' +
+        '<div style="font-size:40px;font-weight:800;color:var(--green);">' + pct + '%</div>' +
+        '<div style="font-size:13px;color:#9b9baf;margin-top:6px;">less than the equivalent petrol journey</div>';
+
+    document.getElementById('cost-results').style.display = 'block';
+    document.getElementById('cost-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ── INJECT REVIEW/FAULT/FAV BUTTONS INTO CHARGER CARDS ──
