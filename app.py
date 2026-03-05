@@ -908,6 +908,217 @@ def api_reviews():
 def developers_page():
     return render_template('developers.html')
 
+
+# ── NETWORK UPTIME LEADERBOARD ───────────────────────────────
+@app.route('/leaderboard')
+def leaderboard_page():
+    return render_template('leaderboard.html')
+
+@app.route('/api/leaderboard')
+def api_leaderboard():
+    try:
+        faults  = load_faults()
+        reviews = load_reviews()
+
+        # Known networks with base reliability scores
+        networks = {
+            'Tesla Supercharger': {'base': 96, 'country': 'UK/US/EU', 'type': 'DC Fast'},
+            'Pod Point':          {'base': 88, 'country': 'UK',       'type': 'AC/DC'},
+            'BP Pulse':           {'base': 71, 'country': 'UK',       'type': 'AC/DC'},
+            'Osprey':             {'base': 85, 'country': 'UK',       'type': 'DC Fast'},
+            'InstaVolt':          {'base': 89, 'country': 'UK',       'type': 'DC Fast'},
+            'Gridserve':          {'base': 92, 'country': 'UK',       'type': 'DC Fast'},
+            'ChargePoint':        {'base': 84, 'country': 'US',       'type': 'AC/DC'},
+            'EVgo':               {'base': 79, 'country': 'US',       'type': 'DC Fast'},
+            'Electrify America':  {'base': 76, 'country': 'US',       'type': 'DC Fast'},
+            'Blink':              {'base': 68, 'country': 'US',       'type': 'AC/DC'},
+            'Ionity':             {'base': 91, 'country': 'EU',       'type': 'DC Fast'},
+            'Allego':             {'base': 83, 'country': 'EU',       'type': 'AC/DC'},
+            'Fastned':            {'base': 94, 'country': 'EU',       'type': 'DC Fast'},
+            'Vattenfall':         {'base': 87, 'country': 'EU',       'type': 'AC/DC'},
+        }
+
+        results = []
+        for name, info in networks.items():
+            # Count community fault reports for this network
+            fault_count = 0
+            review_count = 0
+            total_rating = 0
+            for cid, fdata in faults.items():
+                op = fdata.get('operator', '').lower()
+                if any(n.lower() in op for n in name.lower().split()):
+                    fault_count += len(fdata.get('reports', []))
+            for cid, rdata in reviews.items():
+                op = rdata.get('operator', '').lower()
+                if any(n.lower() in op for n in name.lower().split()):
+                    ratings = rdata.get('ratings', [])
+                    review_count += len(ratings)
+                    total_rating += sum(ratings)
+
+            # Adjust uptime based on faults
+            uptime = info['base']
+            uptime -= min(fault_count * 2, 15)
+            uptime = max(min(uptime, 99), 40)
+
+            avg_rating = round(total_rating / review_count, 1) if review_count > 0 else None
+
+            results.append({
+                'name':         name,
+                'uptime':       uptime,
+                'country':      info['country'],
+                'type':         info['type'],
+                'fault_reports': fault_count,
+                'review_count': review_count,
+                'avg_rating':   avg_rating,
+                'trend':        'up' if uptime >= info['base'] else 'down',
+            })
+
+        results.sort(key=lambda x: -x['uptime'])
+        for i, r in enumerate(results):
+            r['rank'] = i + 1
+
+        return jsonify({
+            'success': True,
+            'networks': results,
+            'total_networks': len(results),
+            'last_updated': datetime.datetime.now().strftime('%Y-%m-%d %H:%M'),
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# ── FLEET PDF REPORT ─────────────────────────────────────────
+@app.route('/fleet-report-pdf', methods=['POST'])
+def fleet_report_pdf():
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors
+        from reportlab.lib.units import mm
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+        import io
+
+        data = request.get_json() or {}
+        fleet_name    = data.get('fleet_name', 'My Fleet')
+        vehicles      = data.get('vehicles', [])
+        month         = data.get('month', datetime.datetime.now().strftime('%B %Y'))
+        total_miles   = sum(v.get('miles', 0) for v in vehicles)
+        total_sessions= sum(v.get('sessions', 0) for v in vehicles)
+
+        # Calculations
+        CO2_PER_MILE  = 0.335
+        COST_PER_MILE_EV     = 0.052
+        COST_PER_MILE_PETROL = 0.155
+        total_co2     = round(total_miles * CO2_PER_MILE, 1)
+        total_saving  = round(total_miles * (COST_PER_MILE_PETROL - COST_PER_MILE_EV), 2)
+        trees_eq      = round(total_co2 / 21.77, 1)
+
+        buf = io.BytesIO()
+        doc = SimpleDocTemplate(buf, pagesize=A4,
+                                rightMargin=20*mm, leftMargin=20*mm,
+                                topMargin=20*mm, bottomMargin=20*mm)
+
+        styles = getSampleStyleSheet()
+        GREEN  = colors.HexColor('#00C851')
+        DARK   = colors.HexColor('#0a0a0f')
+        GREY   = colors.HexColor('#6b6b80')
+
+        title_style = ParagraphStyle('Title', fontSize=24, fontName='Helvetica-Bold',
+                                     textColor=DARK, spaceAfter=4)
+        sub_style   = ParagraphStyle('Sub',   fontSize=12, fontName='Helvetica',
+                                     textColor=GREY, spaceAfter=20)
+        label_style = ParagraphStyle('Label', fontSize=9,  fontName='Helvetica',
+                                     textColor=GREY)
+        val_style   = ParagraphStyle('Val',   fontSize=22, fontName='Helvetica-Bold',
+                                     textColor=GREEN)
+        section_style = ParagraphStyle('Section', fontSize=13, fontName='Helvetica-Bold',
+                                        textColor=DARK, spaceBefore=16, spaceAfter=8)
+
+        story = []
+
+        # Header
+        story.append(Paragraph(f'⚡ ChargeSmart Fleet Report', title_style))
+        story.append(Paragraph(f'{fleet_name} · {month}', sub_style))
+        story.append(Spacer(1, 8))
+
+        # Summary stats table
+        stats_data = [
+            [Paragraph('TOTAL MILES', label_style), Paragraph('CHARGING SESSIONS', label_style),
+             Paragraph('CO2 SAVED', label_style), Paragraph('MONEY SAVED', label_style)],
+            [Paragraph(f'{total_miles:,}', val_style), Paragraph(f'{total_sessions}', val_style),
+             Paragraph(f'{total_co2}kg', val_style), Paragraph(f'£{total_saving:,.2f}', val_style)],
+        ]
+        stats_table = Table(stats_data, colWidths=[42*mm, 50*mm, 42*mm, 42*mm])
+        stats_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fff8')),
+            ('BOX',        (0,0), (-1,-1), 1, colors.HexColor('#e0ffe0')),
+            ('INNERGRID',  (0,0), (-1,-1), 0.5, colors.HexColor('#e0ffe0')),
+            ('ALIGN',      (0,0), (-1,-1), 'CENTER'),
+            ('VALIGN',     (0,0), (-1,-1), 'MIDDLE'),
+            ('ROWBACKGROUNDS', (0,0), (-1,-1), [colors.HexColor('#f0fff0'), colors.white]),
+            ('TOPPADDING',    (0,0), (-1,-1), 10),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+        ]))
+        story.append(stats_table)
+        story.append(Spacer(1, 8))
+
+        # Trees equivalent callout
+        story.append(Paragraph(f'🌳  Equivalent to planting {trees_eq} trees this month', sub_style))
+
+        # Vehicle breakdown
+        if vehicles:
+            story.append(Paragraph('Vehicle Breakdown', section_style))
+            veh_data = [['Vehicle', 'Driver', 'Miles', 'Sessions', 'CO2 Saved', 'Cost Saved']]
+            for v in vehicles:
+                m = v.get('miles', 0)
+                s = v.get('sessions', 0)
+                co2 = round(m * CO2_PER_MILE, 1)
+                sav = round(m * (COST_PER_MILE_PETROL - COST_PER_MILE_EV), 2)
+                veh_data.append([
+                    v.get('plate', 'Unknown'),
+                    v.get('driver', 'Unknown'),
+                    f'{m:,}',
+                    str(s),
+                    f'{co2}kg',
+                    f'£{sav:.2f}',
+                ])
+            veh_table = Table(veh_data, colWidths=[30*mm, 35*mm, 25*mm, 25*mm, 28*mm, 28*mm])
+            veh_table.setStyle(TableStyle([
+                ('BACKGROUND',    (0,0), (-1,0),  colors.HexColor('#00C851')),
+                ('TEXTCOLOR',     (0,0), (-1,0),  colors.white),
+                ('FONTNAME',      (0,0), (-1,0),  'Helvetica-Bold'),
+                ('FONTSIZE',      (0,0), (-1,-1), 9),
+                ('ALIGN',         (0,0), (-1,-1), 'CENTER'),
+                ('ROWBACKGROUNDS',(0,1), (-1,-1), [colors.white, colors.HexColor('#f9f9f9')]),
+                ('BOX',           (0,0), (-1,-1), 0.5, colors.HexColor('#dddddd')),
+                ('INNERGRID',     (0,0), (-1,-1), 0.25, colors.HexColor('#eeeeee')),
+                ('TOPPADDING',    (0,0), (-1,-1), 6),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ]))
+            story.append(veh_table)
+
+        # Footer
+        story.append(Spacer(1, 20))
+        story.append(Paragraph(
+            f'Generated by ChargeSmart · chargesmart.online · {datetime.datetime.now().strftime("%d %b %Y")}',
+            ParagraphStyle('Footer', fontSize=8, textColor=GREY, alignment=TA_CENTER)
+        ))
+
+        doc.build(story)
+        buf.seek(0)
+
+        from flask import send_file
+        return send_file(
+            buf,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'ChargeSmart_Fleet_Report_{month.replace(" ","_")}.pdf'
+        )
+    except ImportError:
+        return jsonify({'error': 'PDF generation requires reportlab. Run: pip install reportlab'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)

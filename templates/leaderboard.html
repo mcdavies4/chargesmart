@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EV Charger Network Reliability — ChargeSmart</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --green:#00ff87; --dark:#0a0a0f; --card:#0d1117; --border:#1e1e2e; --text:#e0e0e0; --muted:#6b6b80; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:var(--dark); color:var(--text); font-family:'Syne',sans-serif; }
+        .grid-bg { position:fixed; top:0; left:0; width:100%; height:100%; background-image:linear-gradient(rgba(0,255,135,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,0.03) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; }
+        .container { max-width:960px; margin:0 auto; padding:0 20px; position:relative; z-index:1; }
+        nav { padding:20px 0; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); margin-bottom:40px; }
+        .logo { font-family:'Space Mono',monospace; font-size:16px; font-weight:700; color:var(--green); text-decoration:none; }
+        .nav-links a { color:var(--muted); text-decoration:none; font-family:'Space Mono',monospace; font-size:11px; margin-left:20px; }
+
+        .hero { margin-bottom:36px; }
+        .badge { display:inline-block; background:rgba(255,68,0,0.1); border:1px solid rgba(255,68,0,0.3); border-radius:20px; padding:4px 14px; font-family:'Space Mono',monospace; font-size:11px; color:#ff4400; letter-spacing:2px; margin-bottom:14px; }
+        h1 { font-size:42px; font-weight:800; line-height:1.15; margin-bottom:10px; }
+        h1 span { color:var(--green); }
+        .subtitle { font-family:'Space Mono',monospace; font-size:12px; color:var(--muted); margin-bottom:28px; }
+
+        /* FILTER TABS */
+        .filter-tabs { display:flex; gap:8px; margin-bottom:24px; flex-wrap:wrap; }
+        .tab { padding:7px 16px; background:transparent; border:1px solid var(--border); border-radius:20px; color:var(--muted); font-family:'Space Mono',monospace; font-size:11px; cursor:pointer; letter-spacing:1px; transition:all 0.2s; }
+        .tab:hover, .tab.active { border-color:var(--green); color:var(--green); }
+
+        /* SUMMARY STATS */
+        .summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:32px; }
+        .stat { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px; text-align:center; }
+        .stat-val { font-size:26px; font-weight:800; color:var(--green); }
+        .stat-lbl { font-family:'Space Mono',monospace; font-size:10px; color:var(--muted); margin-top:4px; letter-spacing:1px; }
+
+        /* LEADERBOARD TABLE */
+        .lb-header { display:grid; grid-template-columns:40px 1fr 100px 80px 80px 80px; gap:12px; padding:10px 18px; font-family:'Space Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:1px; border-bottom:1px solid var(--border); margin-bottom:8px; }
+        .lb-row { display:grid; grid-template-columns:40px 1fr 100px 80px 80px 80px; gap:12px; align-items:center; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px 18px; margin-bottom:8px; transition:border-color 0.2s; }
+        .lb-row:hover { border-color:rgba(0,255,135,0.3); }
+        .lb-rank { font-family:'Space Mono',monospace; font-size:14px; font-weight:700; color:var(--muted); text-align:center; }
+        .lb-rank.gold   { color:#FFD700; }
+        .lb-rank.silver { color:#C0C0C0; }
+        .lb-rank.bronze { color:#CD7F32; }
+        .lb-name { font-weight:700; font-size:15px; }
+        .lb-badges { display:flex; gap:6px; margin-top:4px; flex-wrap:wrap; }
+        .lb-badge { font-family:'Space Mono',monospace; font-size:9px; padding:2px 8px; border-radius:10px; }
+        .badge-dc   { background:rgba(0,255,135,0.1);  color:var(--green); border:1px solid rgba(0,255,135,0.2); }
+        .badge-ac   { background:rgba(100,100,255,0.1);color:#8888ff;      border:1px solid rgba(100,100,255,0.2); }
+        .badge-uk   { background:rgba(0,100,255,0.1);  color:#4488ff;      border:1px solid rgba(0,100,255,0.2); }
+        .badge-us   { background:rgba(255,50,50,0.1);  color:#ff6666;      border:1px solid rgba(255,50,50,0.2); }
+        .badge-eu   { background:rgba(255,200,0,0.1);  color:#ffcc00;      border:1px solid rgba(255,200,0,0.2); }
+        .lb-uptime { text-align:center; }
+        .uptime-val { font-size:18px; font-weight:800; }
+        .uptime-bar { height:5px; border-radius:3px; margin-top:5px; }
+        .lb-faults { font-family:'Space Mono',monospace; font-size:12px; text-align:center; color:var(--muted); }
+        .lb-rating { font-family:'Space Mono',monospace; font-size:12px; text-align:center; color:#FFD700; }
+        .lb-trend { text-align:center; font-size:16px; }
+
+        .share-btn { background:#1DA1F2; border:none; border-radius:8px; padding:10px 20px; color:#fff; font-family:'Space Mono',monospace; font-size:11px; cursor:pointer; letter-spacing:1px; }
+        .last-updated { font-family:'Space Mono',monospace; font-size:11px; color:var(--muted); margin-bottom:16px; }
+
+        .disclaimer { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px 20px; margin-top:32px; font-family:'Space Mono',monospace; font-size:11px; color:var(--muted); line-height:1.7; }
+
+        footer { border-top:1px solid var(--border); padding:24px 0; text-align:center; font-family:'Space Mono',monospace; font-size:11px; color:var(--muted); margin-top:48px; }
+
+        @media(max-width:600px) {
+            h1 { font-size:28px; }
+            .lb-header { display:none; }
+            .lb-row { grid-template-columns:36px 1fr 80px; }
+            .lb-faults, .lb-rating, .lb-trend { display:none; }
+        }
+    </style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="container">
+    <nav>
+        <a href="/" class="logo">⚡ ChargeSmart</a>
+        <div class="nav-links">
+            <a href="/developers">API</a>
+            <a href="/">APP</a>
+        </div>
+    </nav>
+
+    <div class="hero">
+        <div class="badge">// LIVE RELIABILITY DATA</div>
+        <h1>Which EV networks<br>can you <span>trust?</span></h1>
+        <p class="subtitle">// Ranked by uptime · Powered by community reports · Updated daily</p>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="share-btn" onclick="shareLeaderboard()">𝕏 SHARE ON X</button>
+            <button onclick="shareLeaderboard()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 20px;color:var(--text);font-family:Space Mono,monospace;font-size:11px;cursor:pointer;letter-spacing:1px;">📋 COPY DATA</button>
+        </div>
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="summary" id="summary-stats">
+        <div class="stat"><div class="stat-val" id="stat-networks">—</div><div class="stat-lbl">NETWORKS TRACKED</div></div>
+        <div class="stat"><div class="stat-val" id="stat-best">—</div><div class="stat-lbl">BEST UPTIME</div></div>
+        <div class="stat"><div class="stat-val" id="stat-worst">—</div><div class="stat-lbl">WORST UPTIME</div></div>
+        <div class="stat"><div class="stat-val" id="stat-faults">—</div><div class="stat-lbl">FAULT REPORTS</div></div>
+    </div>
+
+    <!-- FILTERS -->
+    <div class="filter-tabs">
+        <button class="tab active" onclick="filterNetworks('all', this)">ALL</button>
+        <button class="tab" onclick="filterNetworks('UK', this)">🇬🇧 UK</button>
+        <button class="tab" onclick="filterNetworks('US', this)">🇺🇸 US</button>
+        <button class="tab" onclick="filterNetworks('EU', this)">🇪🇺 EU</button>
+        <button class="tab" onclick="filterNetworks('DC Fast', this)">⚡ DC FAST</button>
+        <button class="tab" onclick="filterNetworks('AC', this)">🔌 AC</button>
+    </div>
+
+    <div class="last-updated" id="last-updated"></div>
+
+    <!-- TABLE HEADER -->
+    <div class="lb-header">
+        <div>#</div>
+        <div>NETWORK</div>
+        <div style="text-align:center;">UPTIME</div>
+        <div style="text-align:center;">FAULTS</div>
+        <div style="text-align:center;">RATING</div>
+        <div style="text-align:center;">TREND</div>
+    </div>
+
+    <div id="leaderboard-list">
+        <div style="text-align:center;padding:40px;font-family:Space Mono,monospace;color:var(--muted);">Loading network data...</div>
+    </div>
+
+    <div class="disclaimer">
+        // DATA NOTE: Uptime scores are calculated from community fault reports submitted through ChargeSmart, combined with baseline reliability data. Higher fault reports = lower uptime score. Base scores reflect publicly available network reliability data. This is not official data from the networks themselves.
+    </div>
+
+    <footer>© 2026 ChargeSmart · <a href="/" style="color:var(--muted);">chargesmart.online</a> · Community-powered EV data</footer>
+</div>
+
+<script>
+var allNetworks = [];
+var currentFilter = 'all';
+
+function uptimeColor(u) {
+    if (u >= 90) return '#00ff87';
+    if (u >= 80) return '#88ff44';
+    if (u >= 70) return '#ffcc00';
+    if (u >= 60) return '#ff8800';
+    return '#ff4400';
+}
+
+function rankClass(r) {
+    if (r === 1) return 'gold';
+    if (r === 2) return 'silver';
+    if (r === 3) return 'bronze';
+    return '';
+}
+
+function renderLeaderboard(networks) {
+    var list = document.getElementById('leaderboard-list');
+    if (!networks.length) {
+        list.innerHTML = '<div style="text-align:center;padding:40px;font-family:Space Mono,monospace;color:var(--muted);">No networks match this filter</div>';
+        return;
+    }
+    list.innerHTML = networks.map(function(n) {
+        var col = uptimeColor(n.uptime);
+        var countryBadge = n.country.split('/').map(function(c) {
+            return '<span class="lb-badge badge-' + c.toLowerCase() + '">' + c + '</span>';
+        }).join('');
+        var typeBadge = n.type.includes('DC')
+            ? '<span class="lb-badge badge-dc">' + n.type + '</span>'
+            : '<span class="lb-badge badge-ac">' + n.type + '</span>';
+        var rating = n.avg_rating ? '★ ' + n.avg_rating : '—';
+        var trend  = n.trend === 'up' ? '↑' : '↓';
+        var trendColor = n.trend === 'up' ? '#00ff87' : '#ff4444';
+        return '<div class="lb-row">' +
+            '<div class="lb-rank ' + rankClass(n.rank) + '">' + (n.rank <= 3 ? ['🥇','🥈','🥉'][n.rank-1] : n.rank) + '</div>' +
+            '<div>' +
+                '<div class="lb-name">' + n.name + '</div>' +
+                '<div class="lb-badges">' + countryBadge + typeBadge + '</div>' +
+            '</div>' +
+            '<div class="lb-uptime">' +
+                '<div class="uptime-val" style="color:' + col + ';">' + n.uptime + '%</div>' +
+                '<div class="uptime-bar" style="background:' + col + ';width:' + n.uptime + '%;opacity:0.6;"></div>' +
+            '</div>' +
+            '<div class="lb-faults">' + (n.fault_reports > 0 ? '⚠ ' + n.fault_reports : '—') + '</div>' +
+            '<div class="lb-rating">' + rating + '</div>' +
+            '<div class="lb-trend" style="color:' + trendColor + ';">' + trend + '</div>' +
+        '</div>';
+    }).join('');
+}
+
+function filterNetworks(filter, btn) {
+    currentFilter = filter;
+    document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+    btn.classList.add('active');
+    var filtered = filter === 'all'
+        ? allNetworks
+        : allNetworks.filter(function(n) {
+            return n.country.includes(filter) || n.type.includes(filter);
+        });
+    renderLeaderboard(filtered);
+}
+
+function loadLeaderboard() {
+    fetch('/api/leaderboard')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.error) { console.error(d.error); return; }
+        allNetworks = d.networks;
+        renderLeaderboard(allNetworks);
+
+        // Update stats
+        document.getElementById('stat-networks').textContent = d.total_networks;
+        document.getElementById('stat-best').textContent     = allNetworks[0].uptime + '%';
+        document.getElementById('stat-worst').textContent    = allNetworks[allNetworks.length-1].uptime + '%';
+        var totalFaults = allNetworks.reduce(function(s,n) { return s + n.fault_reports; }, 0);
+        document.getElementById('stat-faults').textContent   = totalFaults || '0';
+        document.getElementById('last-updated').textContent  = '// Last updated: ' + d.last_updated;
+    })
+    .catch(function(e) { console.error(e); });
+}
+
+function shareLeaderboard() {
+    if (!allNetworks.length) return;
+    var top3 = allNetworks.slice(0,3).map(function(n,i) {
+        return ['🥇','🥈','🥉'][i] + ' ' + n.name + ': ' + n.uptime + '%';
+    }).join('\n');
+    var worst = allNetworks[allNetworks.length-1];
+    var text = encodeURIComponent(
+        'EV Charger Network Reliability Rankings 🔌\n\n' +
+        'Top 3:\n' + top3 + '\n\n' +
+        'Worst: ' + worst.name + ' at ' + worst.uptime + '% uptime\n\n' +
+        'Full rankings at chargesmart.online/leaderboard\n\n' +
+        '#EVCharging #ElectricVehicles #EVInfrastructure @elonmusk @Tesla'
+    );
+    window.open('https://twitter.com/intent/tweet?text=' + text, '_blank');
+}
+
+loadLeaderboard();
+</script>
+</body>
+</html>

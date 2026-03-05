@@ -286,6 +286,7 @@
                 <a href="/developers" style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);text-decoration:none;border:1px solid var(--border);border-radius:20px;padding:5px 12px;letter-spacing:1px;white-space:nowrap;">API DOCS</a>
                 <div style="display:flex;gap:8px;align-items:center;">
                 <button onclick="startDemo()" style="padding:8px 16px;background:rgba(0,255,135,0.1);border:1px solid rgba(0,255,135,0.4);border-radius:20px;color:#00ff87;font-family:Space Mono,monospace;font-size:11px;cursor:pointer;letter-spacing:2px;">▶ DEMO</button>
+                <button id="range-toggle" class="fleet-toggle-btn" onclick="toggleRangeMode()">🔋 RANGE</button>
                 <button id="desert-toggle" class="fleet-toggle-btn" onclick="toggleDesertMode()">🏜 DESERTS</button>
                 <button id="cost-toggle" class="fleet-toggle-btn" onclick="toggleCostMode()">💰 COST CALC</button>
                 <button id="carbon-toggle" class="fleet-toggle-btn" onclick="toggleCarbonMode()">🌱 CARBON</button>
@@ -451,6 +452,55 @@
         </div>
 
 
+
+        <!-- RANGE ANXIETY CALCULATOR -->
+        <div id="range-section" style="display:none">
+            <div class="card">
+                <div class="card-title">// Range Anxiety Calculator 🔋</div>
+                <div style="margin-bottom:20px;padding:16px;background:rgba(0,255,135,0.05);border:1px solid rgba(0,255,135,0.15);border-radius:8px;font-family:Space Mono,monospace;font-size:12px;color:var(--muted);line-height:1.6;">
+                    Enter your car, battery level and destination distance. We will tell you if you will make it — and where to stop if not.
+                </div>
+                <div class="form-grid" style="margin-bottom:20px;">
+                    <div class="form-group">
+                        <label>Your EV model</label>
+                        <select id="range-car">
+                            <option value="273">Nissan Leaf (273km range)</option>
+                            <option value="491" selected>Tesla Model 3 (491km range)</option>
+                            <option value="507">Tesla Model Y (507km range)</option>
+                            <option value="424">VW ID.3 (424km range)</option>
+                            <option value="529">VW ID.4 (529km range)</option>
+                            <option value="300">Renault Zoe (300km range)</option>
+                            <option value="440">Hyundai Ioniq 5 (440km range)</option>
+                            <option value="614">BMW iX (614km range)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Current battery %</label>
+                        <input type="number" id="range-battery" placeholder="e.g. 80" min="1" max="100" value="80">
+                    </div>
+                    <div class="form-group">
+                        <label>Journey distance (miles)</label>
+                        <input type="number" id="range-distance" placeholder="e.g. 150" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Driving conditions</label>
+                        <select id="range-conditions">
+                            <option value="1.0">Normal (mixed roads)</option>
+                            <option value="0.85">Cold weather (below 5°C)</option>
+                            <option value="0.9">Motorway (high speed)</option>
+                            <option value="1.1">City driving (slow traffic)</option>
+                            <option value="0.8">Cold + Motorway (worst case)</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="predict-btn" onclick="calculateRange()">CHECK IF I WILL MAKE IT</button>
+            </div>
+            <div class="card" id="range-results" style="display:none">
+                <div id="range-verdict" style="text-align:center;padding:24px 0;margin-bottom:20px;border-radius:12px;"></div>
+                <div id="range-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:20px;"></div>
+                <div id="range-advice" style="font-family:Space Mono,monospace;font-size:12px;color:var(--muted);padding:16px;background:rgba(0,255,135,0.03);border:1px solid var(--border);border-radius:10px;line-height:1.8;"></div>
+            </div>
+        </div>
 
         <!-- CHARGER DESERT MAP -->
         <div id="desert-section" style="display:none">
@@ -2078,6 +2128,148 @@
             'Source: chargesmart.online';
         navigator.clipboard.writeText(text).then(function() {
             alert('Data copied! Use it in your tweet or report.');
+        });
+    }
+
+
+    // ── RANGE ANXIETY CALCULATOR ─────────────────────────────
+    var rangeMode = false;
+
+    function toggleRangeMode() {
+        rangeMode = !rangeMode;
+        var btn = document.getElementById('range-toggle');
+        if (rangeMode) {
+            ['consumer-section','fleet-section','route-section','carbon-section','cost-section','desert-section'].forEach(function(s){
+                var el=document.getElementById(s); if(el) el.style.display='none';
+            });
+            document.getElementById('range-section').style.display = 'block';
+            btn.style.borderColor='var(--green)'; btn.style.color='var(--green)'; btn.textContent='✓ RANGE';
+            carbonMode=false; try{fleetMode=false;routeMode=false;costMode=false;desertMode=false;}catch(e){}
+        } else {
+            document.getElementById('range-section').style.display='none';
+            document.getElementById('consumer-section').style.display='block';
+            btn.style.borderColor='var(--muted)'; btn.style.color='var(--muted)'; btn.textContent='🔋 RANGE';
+        }
+    }
+
+    function calculateRange() {
+        var maxRangeKm  = parseFloat(document.getElementById('range-car').value);
+        var batteryPct  = parseFloat(document.getElementById('range-battery').value);
+        var distMiles   = parseFloat(document.getElementById('range-distance').value);
+        var conditions  = parseFloat(document.getElementById('range-conditions').value);
+
+        if (!batteryPct || batteryPct <= 0 || batteryPct > 100) { alert('Enter battery % between 1-100'); return; }
+        if (!distMiles  || distMiles <= 0)  { alert('Enter journey distance'); return; }
+
+        // Available range
+        var availRangeKm    = (maxRangeKm * (batteryPct / 100)) * conditions;
+        var availRangeMiles = availRangeKm * 0.621;
+        var distKm          = distMiles * 1.609;
+        var canMakeIt       = availRangeMiles >= distMiles;
+        var remainingMiles  = availRangeMiles - distMiles;
+        var remainingPct    = Math.round((availRangeMiles / (maxRangeKm * 0.621)) * 100);
+
+        // Where to charge if can't make it
+        var chargeAtMile = Math.round(availRangeMiles * 0.85); // charge at 85% of available range
+        var chargeNeededKwh = Math.round((distMiles - availRangeMiles) / (maxRangeKm * 0.621 / (maxRangeKm * 0.2))); // approx
+
+        // Verdict
+        var verdictEl = document.getElementById('range-verdict');
+        if (canMakeIt) {
+            verdictEl.style.background = 'rgba(0,255,135,0.08)';
+            verdictEl.style.border = '2px solid var(--green)';
+            verdictEl.innerHTML = '<div style="font-size:40px;margin-bottom:8px;">✅</div>' +
+                '<div style="font-size:22px;font-weight:800;color:var(--green);">YOU WILL MAKE IT</div>' +
+                '<div style="font-family:Space Mono,monospace;font-size:12px;color:var(--muted);margin-top:6px;">Arriving with ~' + Math.round(remainingMiles) + ' miles to spare</div>';
+        } else {
+            verdictEl.style.background = 'rgba(255,68,0,0.08)';
+            verdictEl.style.border = '2px solid #ff4400';
+            verdictEl.innerHTML = '<div style="font-size:40px;margin-bottom:8px;">⚠️</div>' +
+                '<div style="font-size:22px;font-weight:800;color:#ff4400;">CHARGE NEEDED</div>' +
+                '<div style="font-family:Space Mono,monospace;font-size:12px;color:var(--muted);margin-top:6px;">You are ' + Math.round(Math.abs(remainingMiles)) + ' miles short</div>';
+        }
+
+        // Stats
+        var statsColor = canMakeIt ? 'var(--green)' : '#ff8800';
+        document.getElementById('range-stats').innerHTML = [
+            {icon:'🔋', val: Math.round(availRangeMiles)+'mi', label:'Available Range', sub: Math.round(availRangeKm)+'km'},
+            {icon:'📍', val: distMiles+'mi',                   label:'Journey Distance', sub: Math.round(distKm)+'km'},
+            {icon:'⚡', val: batteryPct+'%',                   label:'Current Battery',  sub: conditions < 1 ? 'Reduced efficiency' : 'Normal conditions'},
+            {icon:'🏁', val: canMakeIt ? '+'+Math.round(remainingMiles)+'mi' : Math.round(Math.abs(remainingMiles))+'mi short', label: canMakeIt ? 'Spare Range' : 'Range Deficit', sub:'on arrival'},
+        ].map(function(s) {
+            return '<div style="background:var(--dark);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;">' +
+                '<div style="font-size:26px;margin-bottom:4px;">' + s.icon + '</div>' +
+                '<div style="font-size:20px;font-weight:800;color:' + statsColor + ';margin-bottom:3px;">' + s.val + '</div>' +
+                '<div style="font-family:Space Mono,monospace;font-size:10px;color:var(--text);">' + s.label + '</div>' +
+                '<div style="font-family:Space Mono,monospace;font-size:9px;color:var(--muted);margin-top:2px;">' + s.sub + '</div></div>';
+        }).join('');
+
+        // Advice
+        var adviceEl = document.getElementById('range-advice');
+        if (canMakeIt) {
+            adviceEl.innerHTML =
+                '✓ You have enough range for this journey.<br>' +
+                '✓ You will arrive with approximately ' + Math.round(remainingMiles) + ' miles remaining.<br>' +
+                (remainingMiles < 20 ? '⚠ Cutting it close — consider a quick top-up charge before you leave.<br>' : '') +
+                '✓ Search for chargers at your destination in case you need a top-up.';
+        } else {
+            adviceEl.innerHTML =
+                '⚠ You need to charge during this journey.<br>' +
+                '→ Plan a charging stop around mile ' + chargeAtMile + ' (before your battery gets too low).<br>' +
+                '→ Use the Route Planner tab to find the best charger on your route.<br>' +
+                '→ A 30-minute DC fast charge should give you enough range to complete the journey.';
+        }
+
+        document.getElementById('range-results').style.display = 'block';
+        document.getElementById('range-results').scrollIntoView({behavior:'smooth', block:'start'});
+    }
+
+    // ── FLEET PDF REPORT ─────────────────────────────────────
+    function generateFleetPDF() {
+        var vehicles = [];
+        document.querySelectorAll('.vehicle-row').forEach(function(row) {
+            var plate  = row.querySelector('.v-plate')  ? row.querySelector('.v-plate').textContent  : 'Unknown';
+            var driver = row.querySelector('.v-driver') ? row.querySelector('.v-driver').textContent : 'Unknown';
+            var miles  = parseInt(row.querySelector('.v-miles')  ? row.querySelector('.v-miles').textContent  : '0') || 0;
+            var sessions = parseInt(row.querySelector('.v-sessions') ? row.querySelector('.v-sessions').textContent : '0') || 0;
+            vehicles.push({plate: plate, driver: driver, miles: miles, sessions: sessions});
+        });
+
+        // If no vehicles in DOM, use sample data
+        if (!vehicles.length) {
+            vehicles = [
+                {plate: 'EV21 ABC', driver: 'Driver 1', miles: 1200, sessions: 18},
+                {plate: 'EV21 XYZ', driver: 'Driver 2', miles: 980,  sessions: 14},
+                {plate: 'EV22 DEF', driver: 'Driver 3', miles: 1450, sessions: 21},
+            ];
+        }
+
+        var btn = event.target;
+        btn.textContent = '⏳ GENERATING...';
+        btn.disabled = true;
+
+        fetch('/fleet-report-pdf', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+                fleet_name: 'My Fleet',
+                vehicles: vehicles,
+                month: new Date().toLocaleString('en-GB', {month:'long', year:'numeric'})
+            })
+        }).then(function(r) {
+            if (!r.ok) return r.json().then(function(d){ throw new Error(d.error); });
+            return r.blob();
+        }).then(function(blob) {
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url; a.download = 'ChargeSmart_Fleet_Report.pdf';
+            a.click();
+            btn.textContent = '📄 MONTHLY REPORT PDF';
+            btn.disabled = false;
+        }).catch(function(e) {
+            alert('PDF error: ' + e.message + '\n\nMake sure reportlab is installed: pip install reportlab');
+            btn.textContent = '📄 MONTHLY REPORT PDF';
+            btn.disabled = false;
         });
     }
 
