@@ -497,6 +497,116 @@ def journey_cost():
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+
+# ── CHARGER DESERT MAP ──────────────────────────────────────
+@app.route('/charger-deserts')
+def charger_deserts():
+    return render_template('index.html')
+
+@app.route('/api/charger-deserts')
+def api_charger_deserts():
+    try:
+        region = request.args.get('region', 'uk')
+
+        # Grid definitions per region
+        regions = {
+            'uk': {
+                'lat_min': 49.9, 'lat_max': 58.7,
+                'lon_min': -6.0, 'lon_max': 1.8,
+                'grid_step': 0.3,
+                'name': 'United Kingdom',
+                'country': 'UK'
+            },
+            'us_east': {
+                'lat_min': 24.5, 'lat_max': 47.5,
+                'lon_min': -85.0, 'lon_max': -66.0,
+                'grid_step': 0.5,
+                'name': 'US East Coast',
+                'country': 'US'
+            },
+            'us_west': {
+                'lat_min': 32.0, 'lat_max': 49.0,
+                'lon_min': -124.5, 'lon_max': -104.0,
+                'grid_step': 0.5,
+                'name': 'US West Coast',
+                'country': 'US'
+            },
+            'germany': {
+                'lat_min': 47.2, 'lat_max': 55.1,
+                'lon_min': 5.8, 'lon_max': 15.1,
+                'grid_step': 0.3,
+                'name': 'Germany',
+                'country': 'EU'
+            },
+            'france': {
+                'lat_min': 41.3, 'lat_max': 51.1,
+                'lon_min': -5.2, 'lon_max': 9.6,
+                'grid_step': 0.3,
+                'name': 'France',
+                'country': 'EU'
+            },
+            'netherlands': {
+                'lat_min': 50.7, 'lat_max': 53.6,
+                'lon_min': 3.3, 'lon_max': 7.3,
+                'grid_step': 0.2,
+                'name': 'Netherlands',
+                'country': 'EU'
+            }
+        }
+
+        if region not in regions:
+            region = 'uk'
+
+        reg = regions[region]
+
+        # Load charger data
+        if os.path.exists('enriched_data.csv'):
+            import pandas as pd
+            df = pd.read_csv('enriched_data.csv')
+            if reg['country'] != 'ALL':
+                df = df[df['country'] == reg['country']]
+            charger_coords = list(zip(df['lat'].values, df['lon'].values))
+        else:
+            charger_coords = []
+
+        # Build grid and find deserts
+        deserts = []
+        covered = []
+        DESERT_RADIUS = 0.08  # ~5 miles in degrees
+
+        lat = reg['lat_min']
+        while lat <= reg['lat_max']:
+            lon = reg['lon_min']
+            while lon <= reg['lon_max']:
+                # Check if any charger is within radius
+                has_charger = False
+                for clat, clon in charger_coords:
+                    if abs(clat - lat) < DESERT_RADIUS and abs(clon - lon) < DESERT_RADIUS:
+                        has_charger = True
+                        break
+
+                if not has_charger:
+                    deserts.append({'lat': round(lat, 3), 'lon': round(lon, 3)})
+                else:
+                    covered.append({'lat': round(lat, 3), 'lon': round(lon, 3)})
+
+                lon += reg['grid_step']
+            lat += reg['grid_step']
+
+        total = len(deserts) + len(covered)
+        desert_pct = round(len(deserts) / total * 100, 1) if total > 0 else 0
+
+        return jsonify({
+            'region': reg['name'],
+            'deserts': deserts[:2000],  # limit for performance
+            'total_desert_zones': len(deserts),
+            'total_covered_zones': len(covered),
+            'desert_percentage': desert_pct,
+            'charger_count': len(charger_coords)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)

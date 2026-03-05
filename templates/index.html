@@ -70,6 +70,7 @@
     </script>
 
     <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -182,6 +183,23 @@
         .availability-bar { height: 6px; border-radius: 3px; flex: 1; background: var(--border); overflow: hidden; }
         .availability-fill { height: 100%; border-radius: 3px; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .desert-region-btn {
+            padding: 8px 14px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--muted);
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            cursor: pointer;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+        .desert-region-btn:hover { border-color: #ff6400; color: #ff6400; }
+        .active-region { border-color: #ff6400 !important; color: #ff6400 !important; }
+        .leaflet-container { background: #0d1117 !important; }
+
         @media (max-width: 700px) {
             /* Layout */
             .container { padding: 0 12px; }
@@ -267,6 +285,7 @@
                 <div class="logo">⚡ ChargeSmart UK</div>
                 <div style="display:flex;gap:8px;align-items:center;">
                 <button onclick="startDemo()" style="padding:8px 16px;background:rgba(0,255,135,0.1);border:1px solid rgba(0,255,135,0.4);border-radius:20px;color:#00ff87;font-family:Space Mono,monospace;font-size:11px;cursor:pointer;letter-spacing:2px;">▶ DEMO</button>
+                <button id="desert-toggle" class="fleet-toggle-btn" onclick="toggleDesertMode()">🏜 DESERTS</button>
                 <button id="cost-toggle" class="fleet-toggle-btn" onclick="toggleCostMode()">💰 COST CALC</button>
                 <button id="carbon-toggle" class="fleet-toggle-btn" onclick="toggleCarbonMode()">🌱 CARBON</button>
                 <button id="route-toggle" class="fleet-toggle-btn" onclick="toggleRouteMode()">🗺 ROUTE PLANNER</button>
@@ -431,6 +450,45 @@
         </div>
 
 
+
+        <!-- CHARGER DESERT MAP -->
+        <div id="desert-section" style="display:none">
+            <div class="card">
+                <div class="card-title">// Charger Desert Map 🏜</div>
+                <div style="margin-bottom:20px;padding:16px;background:rgba(255,100,0,0.05);border:1px solid rgba(255,100,0,0.2);border-radius:8px;font-family:Space Mono,monospace;font-size:12px;color:var(--muted);line-height:1.6;">
+                    Areas with <strong style="color:#ff6400;">no EV charger within 5 miles</strong> — mapped using 4 million real data points. These are the EV charging deserts governments and networks need to fix.
+                </div>
+
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
+                    <button onclick="loadDeserts('uk')" id="desert-btn-uk" class="desert-region-btn active-region">🇬🇧 UK</button>
+                    <button onclick="loadDeserts('us_east')" id="desert-btn-us_east" class="desert-region-btn">🇺🇸 US East</button>
+                    <button onclick="loadDeserts('us_west')" id="desert-btn-us_west" class="desert-region-btn">🇺🇸 US West</button>
+                    <button onclick="loadDeserts('germany')" id="desert-btn-germany" class="desert-region-btn">🇩🇪 Germany</button>
+                    <button onclick="loadDeserts('france')" id="desert-btn-france" class="desert-region-btn">🇫🇷 France</button>
+                    <button onclick="loadDeserts('netherlands')" id="desert-btn-netherlands" class="desert-region-btn">🇳🇱 Netherlands</button>
+                </div>
+
+                <div id="desert-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;"></div>
+
+                <div id="desert-map" style="height:480px;border-radius:12px;border:1px solid var(--border);background:#0d1117;"></div>
+
+                <div style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+                    <div style="display:flex;align-items:center;gap:6px;font-family:Space Mono,monospace;font-size:11px;color:var(--muted);">
+                        <div style="width:14px;height:14px;background:#ff4400;border-radius:3px;opacity:0.7;"></div> Charging Desert
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;font-family:Space Mono,monospace;font-size:11px;color:var(--muted);">
+                        <div style="width:14px;height:14px;background:#00ff87;border-radius:3px;opacity:0.5;"></div> Covered Area
+                    </div>
+                    <button onclick="shareDesertMap()" style="margin-left:auto;background:#1DA1F2;border:none;border-radius:8px;padding:8px 16px;color:#fff;font-family:Space Mono,monospace;font-size:11px;cursor:pointer;letter-spacing:1px;">𝕏 SHARE ON X</button>
+                    <button onclick="copyDesertData()" style="background:var(--dark);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text);font-family:Space Mono,monospace;font-size:11px;cursor:pointer;letter-spacing:1px;">📋 COPY DATA</button>
+                </div>
+
+                <div id="desert-loading" style="display:none;text-align:center;padding:40px;font-family:Space Mono,monospace;color:var(--muted);">
+                    <div style="font-size:24px;margin-bottom:10px;">🗺</div>
+                    Analysing 4 million data points...
+                </div>
+            </div>
+        </div>
 
         <!-- JOURNEY COST CALCULATOR -->
         <div id="cost-section" style="display:none">
@@ -1836,7 +1894,167 @@
         if (e.key === 'ArrowRight' && demoActive) nextDemo();
         if (e.key === 'ArrowLeft' && demoActive) prevDemo();
     });
-    </script>
+    
+    // ── CHARGER DESERT MAP ──────────────────────────────────
+    var desertMode = false;
+    var desertMap = null;
+    var desertLayers = [];
+    var currentDesertData = null;
+    var currentRegion = 'uk';
+
+    function toggleDesertMode() {
+        desertMode = !desertMode;
+        var btn = document.getElementById('desert-toggle');
+        if (desertMode) {
+            ['consumer-section','fleet-section','route-section','carbon-section','cost-section'].forEach(function(s){
+                var el = document.getElementById(s); if(el) el.style.display='none';
+            });
+            document.getElementById('desert-section').style.display = 'block';
+            btn.style.borderColor = '#ff6400';
+            btn.style.color = '#ff6400';
+            btn.textContent = '✓ DESERTS';
+            carbonMode = false;
+            try{fleetMode=false;routeMode=false;costMode=false;}catch(e){}
+            [{id:'fleet-toggle',t:'FLEET MODE'},{id:'carbon-toggle',t:'🌱 CARBON'},
+             {id:'route-toggle',t:'🗺 ROUTE PLANNER'},{id:'cost-toggle',t:'💰 COST CALC'}].forEach(function(ob){
+                var b=document.getElementById(ob.id);
+                if(b){b.style.borderColor='var(--muted)';b.style.color='var(--muted)';b.textContent=ob.t;}
+            });
+            // Load map after short delay to allow DOM render
+            setTimeout(function() { initDesertMap(); loadDeserts('uk'); }, 200);
+        } else {
+            document.getElementById('desert-section').style.display = 'none';
+            document.getElementById('consumer-section').style.display = 'block';
+            btn.style.borderColor = 'var(--muted)';
+            btn.style.color = 'var(--muted)';
+            btn.textContent = '🏜 DESERTS';
+        }
+    }
+
+    function initDesertMap() {
+        if (desertMap) return;
+        if (typeof L === 'undefined') {
+            // Load leaflet dynamically
+            var script = document.createElement('script');
+            script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+            script.onload = function() { createMap(); };
+            document.head.appendChild(script);
+        } else {
+            createMap();
+        }
+    }
+
+    function createMap() {
+        desertMap = L.map('desert-map', { zoomControl: true }).setView([54.5, -2.5], 6);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: 'ChargeSmart | CartoDB',
+            maxZoom: 18
+        }).addTo(desertMap);
+    }
+
+    function loadDeserts(region) {
+        currentRegion = region;
+        // Update active button
+        document.querySelectorAll('.desert-region-btn').forEach(function(b) {
+            b.classList.remove('active-region');
+        });
+        var activeBtn = document.getElementById('desert-btn-' + region);
+        if (activeBtn) activeBtn.classList.add('active-region');
+
+        document.getElementById('desert-loading').style.display = 'block';
+        document.getElementById('desert-stats').innerHTML = '';
+
+        fetch('/api/charger-deserts?region=' + region)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            document.getElementById('desert-loading').style.display = 'none';
+            if (data.error) { alert('Error: ' + data.error); return; }
+            currentDesertData = data;
+            renderDesertMap(data);
+            renderDesertStats(data);
+        })
+        .catch(function(e) {
+            document.getElementById('desert-loading').style.display = 'none';
+            alert('Could not load desert data');
+        });
+    }
+
+    function renderDesertStats(data) {
+        var stats = [
+            { icon: '🏜', value: data.total_desert_zones.toLocaleString(), label: 'Desert Zones', color: '#ff4400' },
+            { icon: '✅', value: data.total_covered_zones.toLocaleString(), label: 'Covered Zones', color: '#00ff87' },
+            { icon: '📊', value: data.desert_percentage + '%', label: 'Area Uncovered', color: '#ff6400' },
+            { icon: '⚡', value: data.charger_count.toLocaleString(), label: 'Chargers Found', color: '#00ff87' },
+        ];
+        document.getElementById('desert-stats').innerHTML = stats.map(function(s) {
+            return '<div style="background:var(--dark);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;">' +
+                '<div style="font-size:24px;margin-bottom:4px;">' + s.icon + '</div>' +
+                '<div style="font-size:20px;font-weight:800;color:' + s.color + ';margin-bottom:3px;">' + s.value + '</div>' +
+                '<div style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);">' + s.label + '</div></div>';
+        }).join('');
+    }
+
+    function renderDesertMap(data) {
+        if (!desertMap) { createMap(); }
+
+        // Clear existing layers
+        desertLayers.forEach(function(l) { desertMap.removeLayer(l); });
+        desertLayers = [];
+
+        // Set map view based on region
+        var views = {
+            uk: [[54.5, -2.5], 6],
+            us_east: [[38.0, -76.0], 5],
+            us_west: [[40.0, -114.0], 5],
+            germany: [[51.0, 10.0], 6],
+            france: [[46.5, 2.5], 6],
+            netherlands: [[52.3, 5.3], 7]
+        };
+        var v = views[currentRegion] || [[54.5, -2.5], 6];
+        desertMap.setView(v[0], v[1]);
+
+        // Draw desert zones (red)
+        var step = currentRegion === 'netherlands' ? 0.2 : (currentRegion.startsWith('us') ? 0.5 : 0.3);
+        data.deserts.forEach(function(d) {
+            var rect = L.rectangle(
+                [[d.lat, d.lon], [d.lat + step, d.lon + step]],
+                { color: '#ff4400', weight: 0, fillColor: '#ff4400', fillOpacity: 0.45 }
+            );
+            rect.addTo(desertMap);
+            desertLayers.push(rect);
+        });
+    }
+
+    function shareDesertMap() {
+        if (!currentDesertData) { alert('Please load a region first'); return; }
+        var d = currentDesertData;
+        var text = encodeURIComponent(
+            'Analysed ' + d.charger_count.toLocaleString() + ' EV chargers in ' + d.region + ' using @ChargeSmart_AI\n\n' +
+            d.desert_percentage + '% of the area has NO EV charger within 5 miles.\n' +
+            d.total_desert_zones.toLocaleString() + ' charging deserts found.\n\n' +
+            'We need more infrastructure. Fast.\n\n' +
+            'chargesmart-production.up.railway.app\n\n' +
+            '#EVCharging #ElectricVehicles #ChargingDeserts @elonmusk @Tesla'
+        );
+        window.open('https://twitter.com/intent/tweet?text=' + text, '_blank');
+    }
+
+    function copyDesertData() {
+        if (!currentDesertData) { alert('Please load a region first'); return; }
+        var d = currentDesertData;
+        var text = 'ChargeSmart Charger Desert Analysis\n' +
+            'Region: ' + d.region + '\n' +
+            'Chargers analysed: ' + d.charger_count.toLocaleString() + '\n' +
+            'Desert zones: ' + d.total_desert_zones.toLocaleString() + '\n' +
+            'Covered zones: ' + d.total_covered_zones.toLocaleString() + '\n' +
+            'Area uncovered: ' + d.desert_percentage + '%\n\n' +
+            'Source: chargesmart-production.up.railway.app';
+        navigator.clipboard.writeText(text).then(function() {
+            alert('Data copied! Use it in your tweet or report.');
+        });
+    }
+
+</script>
 
 
 <script>
