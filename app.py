@@ -596,13 +596,45 @@ def api_charger_deserts():
         total = len(deserts) + len(covered)
         desert_pct = round(len(deserts) / total * 100, 1) if total > 0 else 0
 
+        # Build sub-region breakdown (quadrants)
+        lat_mid = (reg['lat_min'] + reg['lat_max']) / 2
+        lon_mid = (reg['lon_min'] + reg['lon_max']) / 2
+
+        quadrants = {
+            'North West': {'d': 0, 'c': 0},
+            'North East': {'d': 0, 'c': 0},
+            'South West': {'d': 0, 'c': 0},
+            'South East': {'d': 0, 'c': 0},
+        }
+        for pt in deserts:
+            ns = 'North' if pt['lat'] >= lat_mid else 'South'
+            ew = 'West' if pt['lon'] < lon_mid else 'East'
+            quadrants[f'{ns} {ew}']['d'] += 1
+        for pt in covered:
+            ns = 'North' if pt['lat'] >= lat_mid else 'South'
+            ew = 'West' if pt['lon'] < lon_mid else 'East'
+            quadrants[f'{ns} {ew}']['c'] += 1
+
+        breakdown = []
+        for name, vals in quadrants.items():
+            total_q = vals['d'] + vals['c']
+            pct_q = round(vals['d'] / total_q * 100, 1) if total_q > 0 else 0
+            breakdown.append({
+                'name': name,
+                'desert_zones': vals['d'],
+                'covered_zones': vals['c'],
+                'desert_pct': pct_q
+            })
+        breakdown.sort(key=lambda x: -x['desert_pct'])
+
         return jsonify({
             'region': reg['name'],
-            'deserts': deserts[:2000],  # limit for performance
+            'deserts': deserts[:2000],
             'total_desert_zones': len(deserts),
             'total_covered_zones': len(covered),
             'desert_percentage': desert_pct,
-            'charger_count': len(charger_coords)
+            'charger_count': len(charger_coords),
+            'breakdown': breakdown
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 400

@@ -16,7 +16,7 @@
     <meta name="keywords" content="EV charger availability UK, EV charger USA, electric vehicle charging Norway, EV charging Germany, EV charger Netherlands, EV charging Sweden, EV charging France, free EV charger finder, EV charging station predictor, EV fleet charging management">
     <meta name="author" content="ChargeSmart">
     <meta name="robots" content="index, follow">
-    <link rel="canonical" href="https://chargesmart-production.up.railway.app/">
+    <link rel="canonical" href="https://chargesmart.online/">
 
     <!-- PWA -->
     <link rel="manifest" href="/static/manifest.json">
@@ -31,8 +31,8 @@
     <meta property="og:title" content="ChargeSmart — Find Free EV Chargers Near You | UK, US & Europe">
     <meta property="og:description" content="AI predictions for EV charging stations across the UK, USA, Norway, Germany, Netherlands, Sweden and France. Find a free charger before you leave home.">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://chargesmart-production.up.railway.app/">
-    <meta property="og:image" content="https://chargesmart-production.up.railway.app/static/favicon.png">
+    <meta property="og:url" content="https://chargesmart.online/">
+    <meta property="og:image" content="https://chargesmart.online/static/favicon.png">
     <meta property="og:site_name" content="ChargeSmart UK">
 
     <!-- Twitter/X card -->
@@ -47,7 +47,7 @@
         "@type": "WebApplication",
         "name": "ChargeSmart UK",
         "description": "AI-powered EV charger availability predictor for drivers and fleet managers across the UK, USA, Norway, Germany, Netherlands, Sweden and France. Predicts which charging stations will be free using machine learning.",
-        "url": "https://chargesmart-production.up.railway.app/",
+        "url": "https://chargesmart.online/",
         "applicationCategory": "UtilitiesApplication",
         "operatingSystem": "Web",
         "offers": {
@@ -470,6 +470,10 @@
 
                 <div id="desert-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;"></div>
 
+                <div id="desert-breakdown" style="margin-bottom:16px;display:none;">
+                    <div style="font-family:Space Mono,monospace;font-size:11px;color:var(--muted);letter-spacing:2px;margin-bottom:10px;">REGIONAL BREAKDOWN</div>
+                    <div id="desert-breakdown-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;"></div>
+                </div>
                 <div id="desert-map" style="height:480px;border-radius:12px;border:1px solid var(--border);background:#0d1117;"></div>
 
                 <div style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
@@ -578,7 +582,7 @@
                         <div style="font-size:26px;margin-bottom:8px;">&#127807; &#9889; &#127758;</div>
                         <div id="badge-headline" style="font-family:Space Mono,monospace;font-size:13px;color:var(--green);font-weight:700;">I saved 0kg CO2 today</div>
                         <div style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);margin-top:5px;">Tracked with ChargeSmart</div>
-                        <div style="font-family:Space Mono,monospace;font-size:9px;color:var(--muted);margin-top:2px;">chargesmart-production.up.railway.app</div>
+                        <div style="font-family:Space Mono,monospace;font-size:9px;color:var(--muted);margin-top:2px;">chargesmart.online</div>
                     </div>
                     <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
                         <button onclick="shareLinkedIn()" style="background:#0077B5;border:none;border-radius:8px;padding:10px 22px;color:#fff;font-family:Space Mono,monospace;font-size:11px;cursor:pointer;letter-spacing:1px;">SHARE ON LINKEDIN</button>
@@ -1992,6 +1996,28 @@
                 '<div style="font-size:20px;font-weight:800;color:' + s.color + ';margin-bottom:3px;">' + s.value + '</div>' +
                 '<div style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);">' + s.label + '</div></div>';
         }).join('');
+
+        // Render breakdown if available
+        if (data.breakdown && data.breakdown.length) {
+            var bdEl = document.getElementById('desert-breakdown');
+            var bdGrid = document.getElementById('desert-breakdown-grid');
+            bdEl.style.display = 'block';
+            bdGrid.innerHTML = data.breakdown.map(function(b) {
+                var barWidth = b.desert_pct;
+                var barColor = b.desert_pct > 60 ? '#ff4400' : b.desert_pct > 30 ? '#ff8800' : '#ffcc00';
+                return '<div style="background:var(--dark);border:1px solid var(--border);border-radius:10px;padding:14px;">' +
+                    '<div style="font-family:Space Mono,monospace;font-size:11px;color:var(--text);margin-bottom:8px;font-weight:700;">' + b.name + '</div>' +
+                    '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
+                        '<span style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);">' + b.desert_zones.toLocaleString() + ' desert zones</span>' +
+                        '<span style="font-family:Space Mono,monospace;font-size:12px;font-weight:800;color:' + barColor + ';">' + b.desert_pct + '%</span>' +
+                    '</div>' +
+                    '<div style="background:#1a1a2a;border-radius:4px;height:8px;overflow:hidden;">' +
+                        '<div style="height:100%;width:' + barWidth + '%;background:' + barColor + ';border-radius:4px;transition:width 0.6s ease;"></div>' +
+                    '</div>' +
+                    '<div style="font-family:Space Mono,monospace;font-size:9px;color:var(--muted);margin-top:5px;">' + b.covered_zones.toLocaleString() + ' zones covered</div>' +
+                '</div>';
+            }).join('');
+        }
     }
 
     function renderDesertMap(data) {
@@ -2033,7 +2059,7 @@
             d.desert_percentage + '% of the area has NO EV charger within 5 miles.\n' +
             d.total_desert_zones.toLocaleString() + ' charging deserts found.\n\n' +
             'We need more infrastructure. Fast.\n\n' +
-            'chargesmart-production.up.railway.app\n\n' +
+            'chargesmart.online\n\n' +
             '#EVCharging #ElectricVehicles #ChargingDeserts @elonmusk @Tesla'
         );
         window.open('https://twitter.com/intent/tweet?text=' + text, '_blank');
@@ -2048,7 +2074,7 @@
             'Desert zones: ' + d.total_desert_zones.toLocaleString() + '\n' +
             'Covered zones: ' + d.total_covered_zones.toLocaleString() + '\n' +
             'Area uncovered: ' + d.desert_percentage + '%\n\n' +
-            'Source: chargesmart-production.up.railway.app';
+            'Source: chargesmart.online';
         navigator.clipboard.writeText(text).then(function() {
             alert('Data copied! Use it in your tweet or report.');
         });
@@ -2147,10 +2173,10 @@ function shareLinkedIn() {
         "Just tracked my EV carbon savings with ChargeSmart!\n\n" +
         "Driving " + miles + " miles electric saved " + co2 + "kg CO2 vs petrol.\n" +
         "That is equivalent to planting " + trees + " trees.\n\n" +
-        "Track yours free: chargesmart-production.up.railway.app\n\n" +
+        "Track yours free: chargesmart.online\n\n" +
         "#ElectricVehicles #EVCharging #Sustainability #CleanEnergy #ChargeSmart"
     );
-    window.open("https://www.linkedin.com/sharing/share-offsite/?url=https://chargesmart-production.up.railway.app&summary="+text, "_blank");
+    window.open("https://www.linkedin.com/sharing/share-offsite/?url=https://chargesmart.online&summary="+text, "_blank");
 }
 
 function copyBadgeText() {
@@ -2159,7 +2185,7 @@ function copyBadgeText() {
     var trees = (parseFloat(co2) / 21.77).toFixed(2);
     var text  = "Just tracked my EV carbon savings with ChargeSmart!\n\nDriving " + miles +
         " miles electric saved " + co2 + "kg CO2 vs petrol - equivalent to planting " + trees +
-        " trees\n\nTrack yours free: chargesmart-production.up.railway.app\n\n" +
+        " trees\n\nTrack yours free: chargesmart.online\n\n" +
         "#ElectricVehicles #EVCharging #Sustainability #ChargeSmart";
     navigator.clipboard.writeText(text).then(function() {
         alert("Copied! Paste it on LinkedIn or Twitter.");
