@@ -267,6 +267,7 @@
                 <div class="logo">⚡ ChargeSmart UK</div>
                 <div style="display:flex;gap:8px;align-items:center;">
                 <button onclick="startDemo()" style="padding:8px 16px;background:rgba(0,255,135,0.1);border:1px solid rgba(0,255,135,0.4);border-radius:20px;color:#00ff87;font-family:Space Mono,monospace;font-size:11px;cursor:pointer;letter-spacing:2px;">▶ DEMO</button>
+                <button id="cost-toggle" class="fleet-toggle-btn" onclick="toggleCostMode()">💰 COST CALC</button>
                 <button id="carbon-toggle" class="fleet-toggle-btn" onclick="toggleCarbonMode()">🌱 CARBON</button>
                 <button id="route-toggle" class="fleet-toggle-btn" onclick="toggleRouteMode()">🗺 ROUTE PLANNER</button>
                 <button id="fleet-toggle" class="fleet-toggle-btn" onclick="toggleFleetMode()">FLEET MODE</button>
@@ -429,6 +430,47 @@
             </div>
         </div>
 
+
+
+        <!-- JOURNEY COST CALCULATOR -->
+        <div id="cost-section" style="display:none">
+            <div class="card">
+                <div class="card-title">// Journey Cost Calculator</div>
+                <div style="margin-bottom:20px;padding:16px;background:rgba(0,255,135,0.05);border:1px solid rgba(0,255,135,0.15);border-radius:8px;font-family:Space Mono,monospace;font-size:12px;color:var(--muted);line-height:1.6;">
+                    See exactly how much your EV journey costs vs petrol — and how much you save.
+                </div>
+                <div class="form-grid" style="margin-bottom:20px;">
+                    <div class="form-group">
+                        <label>Journey distance (miles)</label>
+                        <input type="number" id="cost-miles" placeholder="e.g. 100" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Your EV model</label>
+                        <select id="cost-car">
+                            <option value="average">Average EV</option>
+                            <option value="nissan_leaf">Nissan Leaf</option>
+                            <option value="tesla_model3">Tesla Model 3</option>
+                            <option value="tesla_modelx">Tesla Model X</option>
+                            <option value="vw_id3">VW ID.3</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Currency</label>
+                        <select id="cost-currency">
+                            <option value="gbp">GBP - UK</option>
+                            <option value="usd">USD - US</option>
+                            <option value="eur">EUR - Europe</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="predict-btn" onclick="calculateJourneyCost()">CALCULATE COST</button>
+            </div>
+            <div class="card" id="cost-results" style="display:none">
+                <div class="card-title">// Cost breakdown</div>
+                <div id="cost-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:20px;"></div>
+                <div id="cost-summary" style="background:rgba(0,255,135,0.05);border:1px solid rgba(0,255,135,0.2);border-radius:12px;padding:16px;text-align:center;font-family:Space Mono,monospace;"></div>
+            </div>
+        </div>
 
         <!-- CARBON SECTION -->
         <div id="carbon-section" style="display:none">
@@ -995,11 +1037,20 @@
                         <div class="charger-meta">📍 ${c.distance_miles} miles away &nbsp;|&nbsp; 🔋 ${c.capacity} bay${c.capacity > 1 ? 's' : ''}</div>
                         <a class="directions-btn" href="https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lon}" target="_blank">🗺 GET DIRECTIONS</a>
                     </div>
+                    <div id="actions-${c.id}" style="padding:4px 12px 10px;"></div>
                     <div class="charger-prediction">
                         <div class="pred-label ${c.prediction}">${c.prediction === 'free' ? 'LIKELY FREE' : 'LIKELY BUSY'}</div>
                         <div class="pred-pct">${c.probability_free}% free</div>
                     </div>
                 </div>`).join('');
+        // Add action buttons to each charger card
+        if (data.chargers) {
+            data.chargers.forEach(function(ch) {
+                setTimeout(function() {
+                    addChargerActions(ch.id, ch.operator, ch.lat, ch.lon);
+                }, 50);
+            });
+        }
         }
 
         function addVehicle() {
@@ -1894,6 +1945,307 @@ function copyBadgeText() {
         "#ElectricVehicles #EVCharging #Sustainability #ChargeSmart";
     navigator.clipboard.writeText(text).then(function() {
         alert("Copied! Paste it on LinkedIn or Twitter.");
+    });
+}
+</script>
+
+
+    <!-- REVIEW MODAL -->
+    <div id="review-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:5000;justify-content:center;align-items:center;">
+        <div style="background:#0d1117;border:1px solid #2a2a3a;border-radius:16px;padding:28px;max-width:400px;width:90%;position:relative;">
+            <button onclick="closeReviewModal()" style="position:absolute;top:12px;right:16px;background:transparent;border:none;color:#6b6b80;font-size:20px;cursor:pointer;">✕</button>
+            <div style="font-family:Space Mono,monospace;font-size:11px;color:#00ff87;letter-spacing:2px;margin-bottom:6px;">RATE THIS CHARGER</div>
+            <div id="review-charger-name" style="font-size:16px;font-weight:700;margin-bottom:20px;"></div>
+            <div style="margin-bottom:16px;">
+                <div style="font-family:Space Mono,monospace;font-size:10px;color:#6b6b80;margin-bottom:8px;">YOUR RATING</div>
+                <div id="star-rating" style="display:flex;gap:8px;font-size:28px;cursor:pointer;">
+                    <span onclick="setRating(1)" class="star">☆</span>
+                    <span onclick="setRating(2)" class="star">☆</span>
+                    <span onclick="setRating(3)" class="star">☆</span>
+                    <span onclick="setRating(4)" class="star">☆</span>
+                    <span onclick="setRating(5)" class="star">☆</span>
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom:16px;">
+                <label>Comment (optional)</label>
+                <textarea id="review-comment" placeholder="e.g. Always works, fast charging..." style="width:100%;background:#0a0a0f;border:1px solid #2a2a3a;border-radius:8px;padding:10px;color:#e0e0e0;font-family:Space Mono,monospace;font-size:12px;resize:vertical;min-height:80px;box-sizing:border-box;"></textarea>
+            </div>
+            <button class="predict-btn" onclick="submitReview()" style="width:100%;">SUBMIT REVIEW</button>
+        </div>
+    </div>
+
+    <!-- FAULT MODAL -->
+    <div id="fault-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:5000;justify-content:center;align-items:center;">
+        <div style="background:#0d1117;border:1px solid #2a2a3a;border-radius:16px;padding:28px;max-width:400px;width:90%;position:relative;">
+            <button onclick="closeFaultModal()" style="position:absolute;top:12px;right:16px;background:transparent;border:none;color:#6b6b80;font-size:20px;cursor:pointer;">✕</button>
+            <div style="font-family:Space Mono,monospace;font-size:11px;color:#ff4444;letter-spacing:2px;margin-bottom:6px;">REPORT A FAULT</div>
+            <div id="fault-charger-name" style="font-size:16px;font-weight:700;margin-bottom:20px;"></div>
+            <div class="form-group" style="margin-bottom:20px;">
+                <label>Fault type</label>
+                <select id="fault-type">
+                    <option value="broken">Charger not working</option>
+                    <option value="cable">Cable damaged</option>
+                    <option value="payment">Payment issue</option>
+                    <option value="occupied">Permanently occupied / ICEd</option>
+                    <option value="slow">Charging much slower than expected</option>
+                    <option value="other">Other issue</option>
+                </select>
+            </div>
+            <button class="predict-btn" onclick="submitFault()" style="width:100%;background:#ff4444;border-color:#ff4444;color:#fff;">REPORT FAULT</button>
+        </div>
+    </div>
+
+    <!-- NOTIFICATION PERMISSION BANNER -->
+    <div id="notif-banner" style="display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0d1117;border:1px solid #00ff87;border-radius:12px;padding:16px 20px;z-index:4000;max-width:360px;width:90%;box-shadow:0 0 30px rgba(0,255,135,0.2);">
+        <div style="font-family:Space Mono,monospace;font-size:11px;color:#00ff87;margin-bottom:6px;">🔔 ENABLE NOTIFICATIONS</div>
+        <div style="font-size:13px;color:#9b9baf;margin-bottom:12px;">Get alerted when your favourite chargers become free.</div>
+        <div style="display:flex;gap:8px;">
+            <button onclick="enableNotifications()" style="flex:1;background:#00ff87;border:none;border-radius:8px;padding:8px;color:#0a0a0f;font-family:Space Mono,monospace;font-size:11px;font-weight:700;cursor:pointer;">ENABLE</button>
+            <button onclick="document.getElementById('notif-banner').style.display='none'" style="flex:1;background:transparent;border:1px solid #2a2a3a;border-radius:8px;padding:8px;color:#6b6b80;font-family:Space Mono,monospace;font-size:11px;cursor:pointer;">NOT NOW</button>
+        </div>
+    </div>
+
+
+<script>
+// ── FAVOURITES (Feature 2) ────────────────────────────────
+var favourites = JSON.parse(localStorage.getItem('cs_favourites') || '{}');
+
+function toggleFavourite(id, operator, lat, lon) {
+    id = String(id);
+    if (favourites[id]) {
+        delete favourites[id];
+        showToast('Removed from favourites');
+    } else {
+        favourites[id] = { operator: operator, lat: lat, lon: lon, id: id };
+        showToast('Added to favourites!');
+        // Show notification banner after first favourite
+        if (Object.keys(favourites).length === 1) {
+            setTimeout(function() {
+                document.getElementById('notif-banner').style.display = 'block';
+            }, 1000);
+        }
+    }
+    localStorage.setItem('cs_favourites', JSON.stringify(favourites));
+    updateFavBtn(id);
+}
+
+function updateFavBtn(id) {
+    var btn = document.getElementById('fav-btn-' + id);
+    if (btn) {
+        btn.textContent = favourites[String(id)] ? '★' : '☆';
+        btn.style.color = favourites[String(id)] ? '#FFD700' : '#6b6b80';
+    }
+}
+
+function showToast(msg) {
+    var t = document.createElement('div');
+    t.textContent = msg;
+    t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#0d1117;border:1px solid #00ff87;border-radius:8px;padding:10px 20px;font-family:Space Mono,monospace;font-size:12px;color:#00ff87;z-index:9000;';
+    document.body.appendChild(t);
+    setTimeout(function() { t.remove(); }, 2500);
+}
+
+// ── REVIEWS (Feature 1) ──────────────────────────────────
+var currentReviewCharger = null;
+var currentRating = 0;
+
+function openReviewModal(id, operator) {
+    currentReviewCharger = { id: id, operator: operator };
+    currentRating = 0;
+    document.getElementById('review-charger-name').textContent = operator;
+    document.getElementById('review-comment').value = '';
+    setRating(0);
+    document.getElementById('review-modal').style.display = 'flex';
+}
+
+function closeReviewModal() {
+    document.getElementById('review-modal').style.display = 'none';
+}
+
+function setRating(n) {
+    currentRating = n;
+    var stars = document.querySelectorAll('#star-rating .star');
+    stars.forEach(function(s, i) {
+        s.textContent = i < n ? '★' : '☆';
+        s.style.color = i < n ? '#FFD700' : '#6b6b80';
+    });
+}
+
+function submitReview() {
+    if (!currentRating) { alert('Please select a star rating'); return; }
+    fetch('/submit-review', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            charger_id: currentReviewCharger.id,
+            operator: currentReviewCharger.operator,
+            rating: currentRating,
+            comment: document.getElementById('review-comment').value
+        })
+    }).then(function(r) { return r.json(); }).then(function(d) {
+        closeReviewModal();
+        showToast('Review submitted! Avg: ' + d.avg_rating + '/5');
+        // Update star display on card
+        var ratingEl = document.getElementById('rating-' + currentReviewCharger.id);
+        if (ratingEl) ratingEl.textContent = '★ ' + d.avg_rating + ' (' + d.total + ')';
+    }).catch(function() { showToast('Could not submit review'); });
+}
+
+// ── FAULT REPORTER (Feature 6) ───────────────────────────
+var currentFaultCharger = null;
+
+function openFaultModal(id, operator) {
+    currentFaultCharger = { id: id, operator: operator };
+    document.getElementById('fault-charger-name').textContent = operator;
+    document.getElementById('fault-modal').style.display = 'flex';
+}
+
+function closeFaultModal() {
+    document.getElementById('fault-modal').style.display = 'none';
+}
+
+function submitFault() {
+    fetch('/report-fault', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            charger_id: currentFaultCharger.id,
+            operator: currentFaultCharger.operator,
+            fault_type: document.getElementById('fault-type').value
+        })
+    }).then(function(r) { return r.json(); }).then(function(d) {
+        closeFaultModal();
+        showToast('Fault reported. Thank you!');
+    }).catch(function() { showToast('Could not report fault'); });
+}
+
+// ── PUSH NOTIFICATIONS (Feature 3) ──────────────────────
+function enableNotifications() {
+    if (!('Notification' in window)) {
+        showToast('Notifications not supported on this browser');
+        document.getElementById('notif-banner').style.display = 'none';
+        return;
+    }
+    Notification.requestPermission().then(function(perm) {
+        document.getElementById('notif-banner').style.display = 'none';
+        if (perm === 'granted') {
+            showToast('Notifications enabled!');
+            localStorage.setItem('cs_notif', 'true');
+            // Demo notification
+            setTimeout(function() {
+                new Notification('ChargeSmart ⚡', {
+                    body: 'Notifications are on! We will alert you when your favourite chargers are free.',
+                    icon: '/static/icon-192.png'
+                });
+            }, 1000);
+        } else {
+            showToast('Notifications blocked');
+        }
+    });
+}
+
+function checkFavouriteNotifications() {
+    if (localStorage.getItem('cs_notif') !== 'true') return;
+    var favIds = Object.keys(favourites);
+    if (!favIds.length) return;
+    // Check each favourite charger
+    favIds.forEach(function(id) {
+        var fav = favourites[id];
+        var hour = new Date().getHours();
+        var day = new Date().getDay();
+        fetch('/predict?hour=' + hour + '&day_of_week=' + day + '&capacity=2&lat=' + fav.lat + '&lon=' + fav.lon)
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (d.prediction === 'free' && d.probability_free > 70) {
+                new Notification('ChargeSmart ⚡ — Charger Free!', {
+                    body: fav.operator + ' looks free right now (' + d.probability_free + '% confidence)',
+                    icon: '/static/icon-192.png'
+                });
+            }
+        });
+    });
+}
+
+// Check favourite notifications every 15 mins
+setInterval(checkFavouriteNotifications, 15 * 60 * 1000);
+
+// ── JOURNEY COST CALCULATOR (Feature 4) ─────────────────
+var costMode = false;
+
+function toggleCostMode() {
+    costMode = !costMode;
+    var btn = document.getElementById('cost-toggle');
+    var sections = ['consumer-section','fleet-section','route-section','carbon-section','cost-section'];
+    if (costMode) {
+        btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)'; btn.textContent = '✓ COST CALC';
+        sections.forEach(function(s) { document.getElementById(s).style.display = s === 'cost-section' ? 'block' : 'none'; });
+        fleetMode = false; carbonMode = false; routeMode = false;
+        ['fleet-toggle','carbon-toggle','route-toggle'].forEach(function(id) {
+            var b = document.getElementById(id); if (b) { b.style.borderColor='var(--muted)'; b.style.color='var(--muted)'; }
+        });
+        document.getElementById('fleet-toggle').textContent = 'FLEET MODE';
+        document.getElementById('carbon-toggle').textContent = '🌱 CARBON';
+        document.getElementById('route-toggle').textContent = '🗺 ROUTE PLANNER';
+    } else {
+        btn.style.borderColor = 'var(--muted)'; btn.style.color = 'var(--muted)'; btn.textContent = '💰 COST CALC';
+        document.getElementById('cost-section').style.display = 'none';
+        document.getElementById('consumer-section').style.display = 'block';
+    }
+}
+
+function calculateJourneyCost() {
+    var miles = document.getElementById('cost-miles').value;
+    var car = document.getElementById('cost-car').value;
+    var currency = document.getElementById('cost-currency').value;
+    if (!miles || miles <= 0) { alert('Please enter journey distance'); return; }
+    fetch('/journey-cost', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ miles: parseFloat(miles), car_model: car, currency: currency })
+    }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.error) { alert(d.error); return; }
+        var sym = d.symbol;
+        document.getElementById('cost-stats').innerHTML = [
+            { icon: '⚡', value: sym + d.ev_cost.toFixed(2), label: 'EV Cost', sub: d.kwh_needed + ' kWh needed' },
+            { icon: '⛽', value: sym + d.petrol_cost.toFixed(2), label: 'Petrol Cost', sub: 'equivalent journey' },
+            { icon: '💰', value: sym + d.saving.toFixed(2), label: 'You Save', sub: 'per trip' },
+            { icon: '💨', value: d.co2_saved + 'kg', label: 'CO2 Saved', sub: 'vs petrol' },
+        ].map(function(s) {
+            return '<div style="background:var(--dark);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center;">' +
+                '<div style="font-size:26px;margin-bottom:6px;">' + s.icon + '</div>' +
+                '<div style="font-size:22px;font-weight:800;color:var(--green);margin-bottom:4px;">' + s.value + '</div>' +
+                '<div style="font-family:Space Mono,monospace;font-size:11px;color:var(--text);">' + s.label + '</div>' +
+                '<div style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);margin-top:2px;">' + s.sub + '</div></div>';
+        }).join('');
+        var pct = Math.round((d.saving / d.petrol_cost) * 100);
+        document.getElementById('cost-summary').innerHTML =
+            '<div style="font-size:13px;color:#9b9baf;margin-bottom:6px;">Driving electric saves you</div>' +
+            '<div style="font-size:32px;font-weight:800;color:var(--green);">' + pct + '% less</div>' +
+            '<div style="font-size:12px;color:#9b9baf;margin-top:4px;">than the equivalent petrol journey</div>';
+        document.getElementById('cost-results').style.display = 'block';
+        document.getElementById('cost-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+}
+
+// ── INJECT REVIEW/FAULT/FAV BUTTONS INTO CHARGER CARDS ──
+// Override displayResults to add buttons
+var _origDisplayResults = typeof displayResults === 'function' ? displayResults : null;
+
+function addChargerActions(chargerId, operator, lat, lon) {
+    var container = document.getElementById('actions-' + chargerId);
+    if (!container) return;
+    var isFav = favourites[String(chargerId)];
+    container.innerHTML =
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">' +
+        '<button id="fav-btn-' + chargerId + '" onclick="toggleFavourite(' + chargerId + ','' + operator.replace(/'/g,"\'") + '',' + lat + ',' + lon + ')" style="background:transparent;border:1px solid #2a2a3a;border-radius:6px;padding:5px 10px;font-size:14px;cursor:pointer;color:' + (isFav ? '#FFD700' : '#6b6b80') + ';">' + (isFav ? '★' : '☆') + '</button>' +
+        '<button onclick="openReviewModal(' + chargerId + ','' + operator.replace(/'/g,"\'") + '')" style="background:transparent;border:1px solid #2a2a3a;border-radius:6px;padding:5px 10px;font-family:Space Mono,monospace;font-size:9px;color:#9b9baf;cursor:pointer;letter-spacing:1px;">REVIEW</button>' +
+        '<button onclick="openFaultModal(' + chargerId + ','' + operator.replace(/'/g,"\'") + '')" style="background:transparent;border:1px solid rgba(255,68,68,0.3);border-radius:6px;padding:5px 10px;font-family:Space Mono,monospace;font-size:9px;color:#ff4444;cursor:pointer;letter-spacing:1px;">REPORT FAULT</button>' +
+        '<span id="rating-' + chargerId + '" style="font-family:Space Mono,monospace;font-size:10px;color:#FFD700;padding:5px 0;"></span>' +
+        '</div>';
+    // Load existing rating
+    fetch('/get-reviews/' + chargerId).then(function(r){return r.json();}).then(function(d){
+        var rEl = document.getElementById('rating-' + chargerId);
+        if (rEl && d.total > 0) rEl.textContent = '★ ' + d.avg_rating + ' (' + d.total + ')';
     });
 }
 </script>
