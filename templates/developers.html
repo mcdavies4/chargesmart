@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChargeSmart API — Developer Docs</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --green: #00ff87; --dark: #0a0a0f; --card: #0d1117;
+            --border: #1e1e2e; --text: #e0e0e0; --muted: #6b6b80;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:var(--dark); color:var(--text); font-family:'Syne',sans-serif; line-height:1.6; }
+        .grid-bg { position:fixed; top:0; left:0; width:100%; height:100%; background-image:linear-gradient(rgba(0,255,135,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,0.03) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; }
+        .container { max-width:1100px; margin:0 auto; padding:0 24px; position:relative; z-index:1; }
+        nav { padding:20px 0; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); }
+        .logo { font-family:'Space Mono',monospace; font-size:16px; font-weight:700; color:var(--green); text-decoration:none; }
+        .nav-links a { color:var(--muted); text-decoration:none; font-family:'Space Mono',monospace; font-size:11px; margin-left:24px; letter-spacing:1px; }
+        .nav-links a:hover { color:var(--green); }
+        .hero { padding:60px 0 40px; }
+        .hero h1 { font-size:52px; font-weight:800; line-height:1.1; margin-bottom:16px; }
+        .hero h1 span { color:var(--green); }
+        .hero p { font-size:18px; color:var(--muted); max-width:600px; margin-bottom:32px; }
+        .badge { display:inline-block; background:rgba(0,255,135,0.1); border:1px solid rgba(0,255,135,0.3); border-radius:20px; padding:4px 14px; font-family:'Space Mono',monospace; font-size:11px; color:var(--green); letter-spacing:2px; margin-bottom:20px; }
+
+        /* GET KEY FORM */
+        .get-key-box { background:var(--card); border:1px solid var(--green); border-radius:16px; padding:28px; margin-bottom:48px; max-width:560px; }
+        .get-key-box h3 { font-size:18px; margin-bottom:6px; }
+        .get-key-box p { color:var(--muted); font-size:14px; margin-bottom:16px; }
+        .key-input-row { display:flex; gap:10px; }
+        .key-input-row input { flex:1; background:#0a0a0f; border:1px solid var(--border); border-radius:8px; padding:12px 16px; color:var(--text); font-family:'Space Mono',monospace; font-size:13px; }
+        .key-input-row button { background:var(--green); border:none; border-radius:8px; padding:12px 22px; color:#0a0a0f; font-family:'Space Mono',monospace; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; }
+        .key-result { margin-top:16px; display:none; }
+        .key-display { background:#0a0a0f; border:1px solid var(--border); border-radius:8px; padding:12px 16px; font-family:'Space Mono',monospace; font-size:13px; color:var(--green); word-break:break-all; cursor:pointer; }
+        .key-hint { font-family:'Space Mono',monospace; font-size:11px; color:var(--muted); margin-top:6px; }
+
+        /* PRICING */
+        .pricing-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-bottom:48px; }
+        .plan { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:22px; }
+        .plan.featured { border-color:var(--green); }
+        .plan-name { font-family:'Space Mono',monospace; font-size:11px; letter-spacing:2px; color:var(--muted); margin-bottom:8px; }
+        .plan-price { font-size:32px; font-weight:800; margin-bottom:4px; }
+        .plan-price span { font-size:14px; color:var(--muted); font-weight:400; }
+        .plan-limit { font-family:'Space Mono',monospace; font-size:12px; color:var(--green); margin-bottom:12px; }
+        .plan-features { list-style:none; }
+        .plan-features li { font-size:13px; color:var(--muted); padding:3px 0; }
+        .plan-features li::before { content:'✓ '; color:var(--green); }
+        .plan-btn { display:block; margin-top:16px; padding:10px; text-align:center; border-radius:8px; font-family:'Space Mono',monospace; font-size:11px; font-weight:700; cursor:pointer; text-decoration:none; letter-spacing:1px; }
+        .plan-btn-free { background:transparent; border:1px solid var(--border); color:var(--text); }
+        .plan-btn-paid { background:var(--green); border:none; color:#0a0a0f; }
+
+        /* ENDPOINTS */
+        .section-title { font-family:'Space Mono',monospace; font-size:11px; letter-spacing:3px; color:var(--muted); margin-bottom:20px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+        .endpoint { background:var(--card); border:1px solid var(--border); border-radius:14px; margin-bottom:16px; overflow:hidden; }
+        .endpoint-header { padding:18px 22px; display:flex; align-items:center; gap:12px; cursor:pointer; }
+        .endpoint-header:hover { background:rgba(255,255,255,0.02); }
+        .method { font-family:'Space Mono',monospace; font-size:11px; font-weight:700; background:rgba(0,255,135,0.15); color:var(--green); padding:4px 10px; border-radius:6px; }
+        .endpoint-path { font-family:'Space Mono',monospace; font-size:14px; flex:1; }
+        .endpoint-desc { font-size:13px; color:var(--muted); }
+        .endpoint-body { padding:0 22px 22px; display:none; }
+        .endpoint-body.open { display:block; }
+        .params-title { font-family:'Space Mono',monospace; font-size:10px; letter-spacing:2px; color:var(--muted); margin:16px 0 8px; }
+        table { width:100%; border-collapse:collapse; font-size:13px; }
+        th { font-family:'Space Mono',monospace; font-size:10px; color:var(--muted); text-align:left; padding:6px 12px; border-bottom:1px solid var(--border); }
+        td { padding:8px 12px; border-bottom:1px solid rgba(255,255,255,0.04); }
+        td:first-child { font-family:'Space Mono',monospace; color:var(--green); font-size:12px; }
+        td:last-child { color:var(--muted); }
+        pre { background:#050508; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto; font-family:'Space Mono',monospace; font-size:12px; line-height:1.7; margin-top:12px; }
+        .try-btn { background:rgba(0,255,135,0.1); border:1px solid rgba(0,255,135,0.3); border-radius:8px; padding:8px 16px; color:var(--green); font-family:'Space Mono',monospace; font-size:11px; cursor:pointer; margin-top:12px; }
+        .try-result { margin-top:12px; display:none; }
+
+        /* STATS */
+        .stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; margin-bottom:48px; }
+        .stat-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; text-align:center; }
+        .stat-val { font-size:28px; font-weight:800; color:var(--green); }
+        .stat-lbl { font-family:'Space Mono',monospace; font-size:10px; color:var(--muted); margin-top:4px; letter-spacing:1px; }
+
+        footer { border-top:1px solid var(--border); padding:28px 0; text-align:center; font-family:'Space Mono',monospace; font-size:11px; color:var(--muted); margin-top:60px; }
+
+        @media(max-width:600px) {
+            .hero h1 { font-size:32px; }
+            .key-input-row { flex-direction:column; }
+        }
+    </style>
+</head>
+<body>
+<div class="grid-bg"></div>
+
+<div class="container">
+    <nav>
+        <a href="/" class="logo">⚡ ChargeSmart</a>
+        <div class="nav-links">
+            <a href="#endpoints">ENDPOINTS</a>
+            <a href="#pricing">PRICING</a>
+            <a href="/">APP</a>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <div class="hero">
+        <div class="badge">// PUBLIC API v1</div>
+        <h1>Build with<br><span>EV Intelligence</span></h1>
+        <p>Real AI predictions, charger desert data and carbon analytics for the UK, US and Europe — all in one API.</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:40px;">
+            <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);">✓ 8.5M data points</div>
+            <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);">✓ 7 countries</div>
+            <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);">✓ 67%+ AI accuracy</div>
+            <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);">✓ Free to start</div>
+        </div>
+    </div>
+
+    <!-- GET KEY -->
+    <div class="get-key-box">
+        <h3>Get your free API key</h3>
+        <p>100 calls/day free forever. No credit card required.</p>
+        <div class="key-input-row">
+            <input type="email" id="reg-email" placeholder="your@email.com">
+            <button onclick="registerKey()">GET KEY →</button>
+        </div>
+        <div class="key-result" id="key-result">
+            <div class="key-display" id="key-display" onclick="copyKey()" title="Click to copy"></div>
+            <div class="key-hint">Click to copy · Keep this safe · <span id="key-msg"></span></div>
+        </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats-row">
+        <div class="stat-card"><div class="stat-val">8.5M</div><div class="stat-lbl">DATA POINTS</div></div>
+        <div class="stat-card"><div class="stat-val">7</div><div class="stat-lbl">COUNTRIES</div></div>
+        <div class="stat-card"><div class="stat-val">67%+</div><div class="stat-lbl">AI ACCURACY</div></div>
+        <div class="stat-card"><div class="stat-val">5</div><div class="stat-lbl">API ENDPOINTS</div></div>
+        <div class="stat-card"><div class="stat-val">99.9%</div><div class="stat-lbl">UPTIME</div></div>
+    </div>
+
+    <!-- PRICING -->
+    <div id="pricing">
+        <div class="section-title">// PRICING TIERS</div>
+        <div class="pricing-grid">
+            <div class="plan">
+                <div class="plan-name">FREE</div>
+                <div class="plan-price">£0 <span>/month</span></div>
+                <div class="plan-limit">100 calls/day</div>
+                <ul class="plan-features">
+                    <li>All 5 endpoints</li>
+                    <li>UK, US & Europe</li>
+                    <li>Community support</li>
+                </ul>
+                <a href="#get-key" class="plan-btn plan-btn-free">GET FREE KEY</a>
+            </div>
+            <div class="plan featured">
+                <div class="plan-name">DEVELOPER</div>
+                <div class="plan-price">£49 <span>/month</span></div>
+                <div class="plan-limit">10,000 calls/day</div>
+                <ul class="plan-features">
+                    <li>All 5 endpoints</li>
+                    <li>Priority responses</li>
+                    <li>Email support</li>
+                    <li>Usage dashboard</li>
+                </ul>
+                <a href="/#upgrade" class="plan-btn plan-btn-paid">UPGRADE NOW</a>
+            </div>
+            <div class="plan">
+                <div class="plan-name">BUSINESS</div>
+                <div class="plan-price">£199 <span>/month</span></div>
+                <div class="plan-limit">100,000 calls/day</div>
+                <ul class="plan-features">
+                    <li>All 5 endpoints</li>
+                    <li>Bulk data export</li>
+                    <li>SLA guarantee</li>
+                    <li>Dedicated support</li>
+                </ul>
+                <a href="mailto:api@chargesmart.online" class="plan-btn plan-btn-paid">CONTACT US</a>
+            </div>
+            <div class="plan">
+                <div class="plan-name">ENTERPRISE</div>
+                <div class="plan-price">£999 <span>/month</span></div>
+                <div class="plan-limit">Unlimited calls</div>
+                <ul class="plan-features">
+                    <li>All 5 endpoints</li>
+                    <li>Custom models</li>
+                    <li>White-label option</li>
+                    <li>99.9% SLA</li>
+                </ul>
+                <a href="mailto:api@chargesmart.online" class="plan-btn plan-btn-paid">CONTACT US</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUTH -->
+    <div style="margin-bottom:40px;">
+        <div class="section-title">// AUTHENTICATION</div>
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method">ALL</span>
+                <span class="endpoint-path">Add your key to every request</span>
+            </div>
+            <div class="endpoint-body open">
+                <pre><span style="color:#6b6b80"># Option 1 — Authorization header (recommended)</span>
+curl https://chargesmart.online/api/v1/predict?lat=51.5&lon=-0.1 \
+  -H "Authorization: Bearer YOUR_API_KEY"
+
+<span style="color:#6b6b80"># Option 2 — Query parameter</span>
+curl https://chargesmart.online/api/v1/predict?lat=51.5&lon=-0.1&key=YOUR_API_KEY</pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- ENDPOINTS -->
+    <div id="endpoints">
+        <div class="section-title">// ENDPOINTS</div>
+
+        <!-- 1. PREDICT -->
+        <div class="endpoint">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep1')">
+                <span class="method">GET</span>
+                <span class="endpoint-path">/api/v1/predict</span>
+                <span class="endpoint-desc">Predict charger availability</span>
+            </div>
+            <div class="endpoint-body" id="ep1">
+                <p style="color:var(--muted);font-size:14px;margin-bottom:12px;">Returns AI prediction for whether a charger will be free or busy, plus the best time to charge today.</p>
+                <div class="params-title">PARAMETERS</div>
+                <table>
+                    <tr><th>Param</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                    <tr><td>lat</td><td>float</td><td>Yes</td><td>Latitude of charger</td></tr>
+                    <tr><td>lon</td><td>float</td><td>Yes</td><td>Longitude of charger</td></tr>
+                    <tr><td>hour</td><td>int</td><td>No</td><td>Hour 0-23 (defaults to now)</td></tr>
+                    <tr><td>day</td><td>int</td><td>No</td><td>Day 0=Mon, 6=Sun (defaults to today)</td></tr>
+                    <tr><td>capacity</td><td>int</td><td>No</td><td>Number of charging bays (default 2)</td></tr>
+                    <tr><td>country</td><td>string</td><td>No</td><td>UK, US or EU (default UK)</td></tr>
+                    <tr><td>location_type</td><td>string</td><td>No</td><td>motorway, supermarket, council, tesla, other</td></tr>
+                </table>
+                <div class="params-title">EXAMPLE REQUEST</div>
+                <pre>GET https://chargesmart.online/api/v1/predict?lat=51.5074&lon=-0.1278&hour=17&capacity=2&country=UK</pre>
+                <div class="params-title">EXAMPLE RESPONSE</div>
+                <pre>{
+  "success": true,
+  "data": {
+    "prediction": "busy",
+    "probability_free": 23.4,
+    "probability_busy": 76.6,
+    "best_time_today": "22:00",
+    "best_time_probability": 91.2,
+    "inputs": { "lat": 51.5, "lon": -0.1, "hour": 17, ... }
+  },
+  "meta": { "version": "v1", "calls_remaining_today": 98 }
+}</pre>
+                <button class="try-btn" onclick="tryEndpoint('predict')">▶ TRY IT LIVE</button>
+                <div class="try-result" id="try-predict"><pre id="try-predict-result"></pre></div>
+            </div>
+        </div>
+
+        <!-- 2. DESERTS -->
+        <div class="endpoint">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep2')">
+                <span class="method">GET</span>
+                <span class="endpoint-path">/api/v1/deserts</span>
+                <span class="endpoint-desc">Charger desert zone data</span>
+            </div>
+            <div class="endpoint-body" id="ep2">
+                <p style="color:var(--muted);font-size:14px;margin-bottom:12px;">Returns areas with no EV charger within 5 miles, broken down by sub-region.</p>
+                <div class="params-title">PARAMETERS</div>
+                <table>
+                    <tr><th>Param</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                    <tr><td>region</td><td>string</td><td>No</td><td>uk, us_east, us_west, germany, france, netherlands</td></tr>
+                </table>
+                <div class="params-title">EXAMPLE RESPONSE</div>
+                <pre>{
+  "success": true,
+  "data": {
+    "region": "United Kingdom",
+    "desert_percentage": 34.2,
+    "total_desert_zones": 1847,
+    "total_covered_zones": 3541,
+    "charger_count": 52400,
+    "breakdown": [
+      { "name": "North West", "desert_pct": 67.3, "desert_zones": 412 },
+      ...
+    ]
+  }
+}</pre>
+            </div>
+        </div>
+
+        <!-- 3. JOURNEY COST -->
+        <div class="endpoint">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep3')">
+                <span class="method">GET</span>
+                <span class="endpoint-path">/api/v1/journey-cost</span>
+                <span class="endpoint-desc">EV vs petrol cost comparison</span>
+            </div>
+            <div class="endpoint-body" id="ep3">
+                <p style="color:var(--muted);font-size:14px;margin-bottom:12px;">Calculate exact cost of an EV journey vs the petrol equivalent.</p>
+                <div class="params-title">PARAMETERS</div>
+                <table>
+                    <tr><th>Param</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                    <tr><td>miles</td><td>float</td><td>Yes</td><td>Journey distance in miles</td></tr>
+                    <tr><td>car</td><td>string</td><td>No</td><td>average, nissan_leaf, tesla_model3, tesla_modelx, vw_id3</td></tr>
+                    <tr><td>currency</td><td>string</td><td>No</td><td>gbp, usd, eur (default gbp)</td></tr>
+                </table>
+                <div class="params-title">EXAMPLE RESPONSE</div>
+                <pre>{
+  "success": true,
+  "data": {
+    "miles": 100,
+    "ev_cost": 7.84,
+    "petrol_cost": 18.20,
+    "saving": 10.36,
+    "saving_pct": 56.9,
+    "kwh_needed": 28.6,
+    "co2_saved_kg": 33.5
+  }
+}</pre>
+                <button class="try-btn" onclick="tryEndpoint('journey-cost')">▶ TRY IT LIVE</button>
+                <div class="try-result" id="try-journey-cost"><pre id="try-journey-cost-result"></pre></div>
+            </div>
+        </div>
+
+        <!-- 4. CARBON -->
+        <div class="endpoint">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep4')">
+                <span class="method">GET</span>
+                <span class="endpoint-path">/api/v1/carbon</span>
+                <span class="endpoint-desc">Carbon savings calculator</span>
+            </div>
+            <div class="endpoint-body" id="ep4">
+                <p style="color:var(--muted);font-size:14px;margin-bottom:12px;">Calculate CO2 saved and money saved by driving electric vs petrol.</p>
+                <div class="params-title">PARAMETERS</div>
+                <table>
+                    <tr><th>Param</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                    <tr><td>miles</td><td>float</td><td>Yes</td><td>Miles per trip</td></tr>
+                    <tr><td>vehicle</td><td>string</td><td>No</td><td>small, medium, large, van (default medium)</td></tr>
+                    <tr><td>trips_per_week</td><td>int</td><td>No</td><td>Weekly trips (default 1)</td></tr>
+                    <tr><td>currency</td><td>string</td><td>No</td><td>gbp, usd, eur</td></tr>
+                </table>
+                <div class="params-title">EXAMPLE RESPONSE</div>
+                <pre>{
+  "success": true,
+  "data": {
+    "co2_saved_per_trip_kg": 33.5,
+    "co2_saved_annual_kg": 8710,
+    "trees_equivalent": 400,
+    "money_saved_annual": 2693.60
+  }
+}</pre>
+            </div>
+        </div>
+
+        <!-- 5. REVIEWS -->
+        <div class="endpoint">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep5')">
+                <span class="method">GET</span>
+                <span class="endpoint-path">/api/v1/reviews</span>
+                <span class="endpoint-desc">Community charger reviews</span>
+            </div>
+            <div class="endpoint-body" id="ep5">
+                <p style="color:var(--muted);font-size:14px;margin-bottom:12px;">Returns community ratings and fault reports for chargers near a location.</p>
+                <div class="params-title">PARAMETERS</div>
+                <table>
+                    <tr><th>Param</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                    <tr><td>lat</td><td>float</td><td>No</td><td>Latitude (default London)</td></tr>
+                    <tr><td>lon</td><td>float</td><td>No</td><td>Longitude (default London)</td></tr>
+                    <tr><td>radius</td><td>float</td><td>No</td><td>Search radius in miles (default 5)</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- QUICK START CODE -->
+    <div style="margin-top:48px;margin-bottom:48px;">
+        <div class="section-title">// QUICK START — JAVASCRIPT</div>
+        <pre><span style="color:#6b6b80">// Get your free key at chargesmart.online/developers</span>
+const API_KEY = 'YOUR_API_KEY';
+
+async function getChargerPrediction(lat, lon) {
+  const res = await fetch(
+    `https://chargesmart.online/api/v1/predict?lat=${lat}&lon=${lon}`,
+    { headers: { 'Authorization': `Bearer ${API_KEY}` } }
+  );
+  const data = await res.json();
+  console.log(data.data.prediction);        <span style="color:#6b6b80">// "free" or "busy"</span>
+  console.log(data.data.probability_free);  <span style="color:#6b6b80">// e.g. 73.4</span>
+  console.log(data.data.best_time_today);   <span style="color:#6b6b80">// e.g. "22:00"</span>
+}
+
+getChargerPrediction(51.5074, -0.1278);</pre>
+
+        <div class="section-title" style="margin-top:32px;">// QUICK START — PYTHON</div>
+        <pre>import requests
+
+API_KEY = 'YOUR_API_KEY'
+headers = {'Authorization': f'Bearer {API_KEY}'}
+
+resp = requests.get(
+    'https://chargesmart.online/api/v1/predict',
+    params={'lat': 51.5074, 'lon': -0.1278, 'hour': 17},
+    headers=headers
+)
+
+data = resp.json()['data']
+print(f"Prediction: {data['prediction']}")
+print(f"Free probability: {data['probability_free']}%")
+print(f"Best time: {data['best_time_today']}")</pre>
+    </div>
+
+    <footer>
+        © 2026 ChargeSmart · <a href="/" style="color:var(--muted);">chargesmart.online</a> · Built with 8.5M EV data points
+    </footer>
+</div>
+
+<script>
+function toggleEndpoint(id) {
+    var el = document.getElementById(id);
+    el.classList.toggle('open');
+}
+
+function registerKey() {
+    var email = document.getElementById('reg-email').value.trim();
+    if (!email || !email.includes('@')) { alert('Please enter a valid email'); return; }
+    fetch('/api/v1/keys/register', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({email: email})
+    }).then(function(r){return r.json();}).then(function(d){
+        if (d.error) { alert(d.error); return; }
+        document.getElementById('key-display').textContent = d.api_key;
+        document.getElementById('key-msg').textContent = d.existing ? 'Welcome back!' : 'Free tier — 100 calls/day';
+        document.getElementById('key-result').style.display = 'block';
+    }).catch(function(){ alert('Could not register key. Please try again.'); });
+}
+
+function copyKey() {
+    var key = document.getElementById('key-display').textContent;
+    navigator.clipboard.writeText(key).then(function(){
+        document.getElementById('key-hint').textContent = '✓ Copied to clipboard!';
+        setTimeout(function(){ document.getElementById('key-hint').textContent = 'Click to copy · Keep this safe'; }, 2000);
+    });
+}
+
+function tryEndpoint(name) {
+    var key = document.getElementById('key-display').textContent;
+    if (!key || key.length < 10) { alert('Enter your email above to get a free API key first'); return; }
+    var urls = {
+        'predict':      '/api/v1/predict?lat=51.5074&lon=-0.1278&capacity=2&country=UK',
+        'journey-cost': '/api/v1/journey-cost?miles=100&car=tesla_model3&currency=gbp'
+    };
+    var url = urls[name];
+    if (!url) return;
+    var resultEl = document.getElementById('try-' + name + '-result');
+    var containerEl = document.getElementById('try-' + name);
+    resultEl.textContent = 'Loading...';
+    containerEl.style.display = 'block';
+    fetch(url, {headers: {'Authorization': 'Bearer ' + key}})
+    .then(function(r){return r.json();})
+    .then(function(d){ resultEl.textContent = JSON.stringify(d, null, 2); })
+    .catch(function(e){ resultEl.textContent = 'Error: ' + e.message; });
+}
+</script>
+</body>
+</html>

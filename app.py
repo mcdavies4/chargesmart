@@ -639,6 +639,275 @@ def api_charger_deserts():
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+
+# ═══════════════════════════════════════════════════════════════
+# CHARGESMART PUBLIC API v1
+# ═══════════════════════════════════════════════════════════════
+from api_system import create_api_key, validate_key, record_usage, get_key_stats, TIER_LIMITS, TIER_PRICES
+from functools import wraps
+
+def require_api_key(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.headers.get('Authorization', '')
+        api_key = auth.replace('Bearer ', '').strip()
+        if not api_key:
+            api_key = request.args.get('key', '')
+        valid, tier, remaining, error = validate_key(api_key)
+        if not valid:
+            return jsonify({
+                'error': error,
+                'docs': 'https://chargesmart.online/developers'
+            }), 401
+        record_usage(api_key)
+        request.api_tier = tier
+        request.api_remaining = remaining
+        return f(*args, **kwargs)
+    return decorated
+
+def api_response(data, api_key=''):
+    """Wrap response with metadata"""
+    auth = request.headers.get('Authorization', '')
+    key = auth.replace('Bearer ', '').strip() or request.args.get('key', '')
+    resp = {
+        'success': True,
+        'data': data,
+        'meta': {
+            'version': 'v1',
+            'calls_remaining_today': getattr(request, 'api_remaining', None),
+            'docs': 'https://chargesmart.online/developers'
+        }
+    }
+    return jsonify(resp)
+
+# ── GET API KEY ──────────────────────────────────────────────
+@app.route('/api/v1/keys/register', methods=['POST'])
+def register_api_key():
+    try:
+        data = request.get_json() or {}
+        email = data.get('email', '').strip().lower()
+        if not email or '@' not in email:
+            return jsonify({'error': 'Valid email required'}), 400
+        result = create_api_key(email, tier='free')
+        if result['existing']:
+            msg = 'Your existing API key has been returned'
+        else:
+            msg = 'API key created successfully. Welcome to ChargeSmart API!'
+        return jsonify({
+            'success': True,
+            'message': msg,
+            'api_key': result['key'],
+            'tier': result['tier'],
+            'daily_limit': TIER_LIMITS['free'],
+            'docs': 'https://chargesmart.online/developers'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# ── USAGE STATS ──────────────────────────────────────────────
+@app.route('/api/v1/keys/stats')
+def api_key_stats():
+    auth = request.headers.get('Authorization', '')
+    api_key = auth.replace('Bearer ', '').strip() or request.args.get('key', '')
+    if not api_key:
+        return jsonify({'error': 'API key required'}), 401
+    stats = get_key_stats(api_key)
+    if not stats:
+        return jsonify({'error': 'Invalid API key'}), 401
+    return jsonify({'success': True, 'data': stats})
+
+# ── 1. PREDICT CHARGER AVAILABILITY ─────────────────────────
+@app.route('/api/v1/predict')
+@require_api_key
+def api_predict():
+    try:
+        lat  = float(request.args.get('lat', 51.5))
+        lon  = float(request.args.get('lon', -0.1))
+        hour = int(request.args.get('hour', datetime.now().hour))
+        day  = int(request.args.get('day', datetime.now().weekday()))
+        cap  = int(request.args.get('capacity', 2))
+        country = request.args.get('country', 'UK').upper()
+
+        country_map = {'UK': 0, 'US': 1, 'EU': 2}
+        loc_map_r = {'motorway': 3, 'supermarket': 2, 'council': 1, 'tesla': 2, 'other': 1}
+        loc_type = request.args.get('location_type', 'other')
+
+        features_vals = [[
+            hour, day,
+            1 if day >= 5 else 0,
+            min(cap, 20),
+            lat, lon,
+            country_map.get(country, 0),
+            loc_map_r.get(loc_type, 1)
+        ]]
+
+        import pickle, os
+        if os.path.exists('charger_model.pkl'):
+            model = pickle.load(open('charger_model.pkl', 'rb'))
+            proba = model.predict_proba(features_vals)[0]
+            prob_free = round(float(proba[0]) * 100, 1)
+            prediction = 'free' if prob_free >= 50 else 'busy'
+        else:
+            prob_free = 50.0
+            prediction = 'unknown'
+
+        # Find best time today
+        best_hour = hour
+        best_prob = prob_free
+        for h in range(24):
+            fv = [[h, day, 1 if day >= 5 else 0, min(cap,20), lat, lon, country_map.get(country,0), loc_map_r.get(loc_type,1)]]
+            if os.path.exists('charger_model.pkl'):
+                p = model.predict_proba(fv)[0]
+                pf = round(float(p[0]) * 100, 1)
+                if pf > best_prob:
+                    best_prob = pf
+                    best_hour = h
+
+        return api_response({
+            'prediction':      prediction,
+            'probability_free': prob_free,
+            'probability_busy': round(100 - prob_free, 1),
+            'best_time_today': f"{best_hour:02d}:00",
+            'best_time_probability': best_prob,
+            'inputs': {
+                'lat': lat, 'lon': lon,
+                'hour': hour, 'day_of_week': day,
+                'capacity': cap, 'country': country,
+                'location_type': loc_type
+            }
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# ── 2. CHARGER DESERTS ───────────────────────────────────────
+@app.route('/api/v1/deserts')
+@require_api_key
+def api_deserts():
+    try:
+        region = request.args.get('region', 'uk')
+        # Reuse existing desert logic
+        with app.test_request_context(f'/api/charger-deserts?region={region}'):
+            pass
+        resp = api_charger_deserts.__wrapped__() if hasattr(api_charger_deserts, '__wrapped__') else api_charger_deserts()
+        data = resp.get_json()
+        return api_response(data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# ── 3. JOURNEY COST ──────────────────────────────────────────
+@app.route('/api/v1/journey-cost')
+@require_api_key
+def api_journey_cost():
+    try:
+        miles    = float(request.args.get('miles', 0))
+        car      = request.args.get('car', 'average')
+        currency = request.args.get('currency', 'gbp').lower()
+        if miles <= 0:
+            return jsonify({'error': 'miles must be greater than 0'}), 400
+
+        EV_EFF  = {'average':3.5,'nissan_leaf':3.5,'tesla_model3':4.0,'tesla_modelx':2.8,'vw_id3':3.8}
+        ELEC    = {'gbp':0.28,'usd':0.16,'eur':0.22}
+        PETROL  = {'gbp':0.155,'usd':0.12,'eur':0.14}
+        SYMS    = {'gbp':'£','usd':'$','eur':'€'}
+
+        kwh       = miles / (EV_EFF.get(car, 3.5))
+        ev_cost   = kwh * ELEC.get(currency, 0.28)
+        pet_cost  = (miles / 35) * PETROL.get(currency, 0.155) * 4.546
+        saving    = pet_cost - ev_cost
+        co2_saved = 0.335 * miles
+
+        return api_response({
+            'miles':          miles,
+            'car_model':      car,
+            'currency':       currency,
+            'symbol':         SYMS.get(currency, '£'),
+            'ev_cost':        round(ev_cost, 2),
+            'petrol_cost':    round(pet_cost, 2),
+            'saving':         round(saving, 2),
+            'saving_pct':     round((saving / pet_cost) * 100, 1),
+            'kwh_needed':     round(kwh, 1),
+            'co2_saved_kg':   round(co2_saved, 1),
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# ── 4. CARBON SAVINGS ────────────────────────────────────────
+@app.route('/api/v1/carbon')
+@require_api_key
+def api_carbon():
+    try:
+        miles          = float(request.args.get('miles', 0))
+        vehicle        = request.args.get('vehicle', 'medium')
+        trips_per_week = int(request.args.get('trips_per_week', 1))
+        currency       = request.args.get('currency', 'gbp').lower()
+        if miles <= 0:
+            return jsonify({'error': 'miles must be greater than 0'}), 400
+
+        EV_CO2   = {'small':0.053,'medium':0.069,'large':0.098,'van':0.135}
+        PETROL_CO2 = 0.404
+        FUEL_COST  = {'gbp':0.155,'usd':0.193,'eur':0.175}
+        EV_COST    = {'gbp':0.052,'usd':0.065,'eur':0.058}
+        SYMS       = {'gbp':'£','usd':'$','eur':'€'}
+
+        co2_per_trip   = (PETROL_CO2 - EV_CO2.get(vehicle, 0.069)) * miles
+        money_per_trip = (FUEL_COST.get(currency,0.155) - EV_COST.get(currency,0.052)) * miles
+
+        return api_response({
+            'miles_per_trip':        miles,
+            'vehicle_type':          vehicle,
+            'trips_per_week':        trips_per_week,
+            'currency':              currency,
+            'symbol':                SYMS.get(currency,'£'),
+            'co2_saved_per_trip_kg': round(co2_per_trip, 2),
+            'co2_saved_weekly_kg':   round(co2_per_trip * trips_per_week, 2),
+            'co2_saved_annual_kg':   round(co2_per_trip * trips_per_week * 52, 1),
+            'trees_equivalent':      round(co2_per_trip * trips_per_week * 52 / 21.77, 1),
+            'money_saved_per_trip':  round(money_per_trip, 2),
+            'money_saved_weekly':    round(money_per_trip * trips_per_week, 2),
+            'money_saved_annual':    round(money_per_trip * trips_per_week * 52, 2),
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# ── 5. CHARGER REVIEWS ───────────────────────────────────────
+@app.route('/api/v1/reviews')
+@require_api_key
+def api_reviews():
+    try:
+        lat    = float(request.args.get('lat', 51.5))
+        lon    = float(request.args.get('lon', -0.1))
+        radius = float(request.args.get('radius', 5))
+
+        reviews = load_reviews()
+        faults  = load_faults()
+        results = []
+        for charger_id, data in reviews.items():
+            ratings = data.get('ratings', [])
+            if not ratings:
+                continue
+            avg = round(sum(ratings) / len(ratings), 1)
+            fault_count = len(faults.get(charger_id, {}).get('reports', []))
+            results.append({
+                'charger_id':    charger_id,
+                'operator':      data.get('operator', 'Unknown'),
+                'avg_rating':    avg,
+                'total_reviews': len(ratings),
+                'recent_faults': fault_count,
+                'comments':      data.get('comments', [])[-3:],
+            })
+        results.sort(key=lambda x: -x['total_reviews'])
+        return api_response({
+            'total_chargers_with_reviews': len(results),
+            'chargers': results[:50]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# ── DEVELOPER DASHBOARD PAGE ─────────────────────────────────
+@app.route('/developers')
+def developers_page():
+    return render_template('developers.html')
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
