@@ -381,6 +381,122 @@ def sitemap():
 def robots():
     return app.send_static_file('robots.txt')
 
+
+# ── REVIEWS ─────────────────────────────────────────────────
+import datetime
+
+REVIEWS_FILE = 'reviews.json'
+
+def load_reviews():
+    if os.path.exists(REVIEWS_FILE):
+        with open(REVIEWS_FILE) as f:
+            return json.load(f)
+    return {}
+
+def save_reviews(reviews):
+    with open(REVIEWS_FILE, 'w') as f:
+        json.dump(reviews, f)
+
+@app.route('/submit-review', methods=['POST'])
+def submit_review():
+    try:
+        data = request.get_json()
+        charger_id = str(data.get('charger_id', ''))
+        rating = int(data.get('rating', 0))
+        comment = str(data.get('comment', ''))[:200]
+        operator = str(data.get('operator', 'Unknown'))[:40]
+        if not charger_id or rating < 1 or rating > 5:
+            return jsonify({'error': 'Invalid review'}), 400
+        reviews = load_reviews()
+        if charger_id not in reviews:
+            reviews[charger_id] = {'operator': operator, 'ratings': [], 'comments': []}
+        reviews[charger_id]['ratings'].append(rating)
+        reviews[charger_id]['comments'].append({
+            'rating': rating,
+            'comment': comment,
+            'date': datetime.datetime.now().strftime('%Y-%m-%d')
+        })
+        save_reviews(reviews)
+        avg = sum(reviews[charger_id]['ratings']) / len(reviews[charger_id]['ratings'])
+        return jsonify({'success': True, 'avg_rating': round(avg, 1), 'total': len(reviews[charger_id]['ratings'])})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/get-reviews/<charger_id>')
+def get_reviews(charger_id):
+    reviews = load_reviews()
+    data = reviews.get(str(charger_id), {})
+    if not data:
+        return jsonify({'avg_rating': None, 'total': 0, 'comments': []})
+    ratings = data.get('ratings', [])
+    avg = sum(ratings) / len(ratings) if ratings else 0
+    return jsonify({
+        'avg_rating': round(avg, 1),
+        'total': len(ratings),
+        'comments': data.get('comments', [])[-5:]
+    })
+
+# ── FAULT REPORTER ───────────────────────────────────────────
+FAULTS_FILE = 'faults.json'
+
+def load_faults():
+    if os.path.exists(FAULTS_FILE):
+        with open(FAULTS_FILE) as f:
+            return json.load(f)
+    return {}
+
+@app.route('/report-fault', methods=['POST'])
+def report_fault():
+    try:
+        data = request.get_json()
+        charger_id = str(data.get('charger_id', ''))
+        fault_type = str(data.get('fault_type', 'other'))
+        operator = str(data.get('operator', 'Unknown'))[:40]
+        if not charger_id:
+            return jsonify({'error': 'Invalid'}), 400
+        faults = load_faults()
+        if charger_id not in faults:
+            faults[charger_id] = {'operator': operator, 'reports': []}
+        faults[charger_id]['reports'].append({
+            'fault_type': fault_type,
+            'date': datetime.datetime.now().strftime('%Y-%m-%d')
+        })
+        with open(FAULTS_FILE, 'w') as f:
+            json.dump(faults, f)
+        return jsonify({'success': True, 'total_reports': len(faults[charger_id]['reports'])})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# ── JOURNEY COST CALCULATOR ──────────────────────────────────
+@app.route('/journey-cost', methods=['POST'])
+def journey_cost():
+    try:
+        data = request.get_json()
+        miles = float(data.get('miles', 0))
+        car_model = data.get('car_model', 'average')
+        currency = data.get('currency', 'gbp')
+        EV_EFFICIENCY = {'nissan_leaf': 3.5, 'tesla_model3': 4.0, 'tesla_modelx': 2.8, 'vw_id3': 3.8, 'average': 3.5}
+        ELEC_COST = {'gbp': 0.28, 'usd': 0.16, 'eur': 0.22}
+        PETROL_COST = {'gbp': 0.155, 'usd': 0.12, 'eur': 0.14}
+        PETROL_MPG = 35
+        sym = {'gbp': '£', 'usd': '$', 'eur': '€'}[currency]
+        mpkwh = EV_EFFICIENCY.get(car_model, 3.5)
+        kwh_needed = miles / mpkwh
+        ev_cost = kwh_needed * ELEC_COST[currency]
+        petrol_cost = (miles / PETROL_MPG) * PETROL_COST[currency] * 4.546
+        saving = petrol_cost - ev_cost
+        co2_saved = (0.404 - 0.069) * miles
+        return jsonify({
+            'ev_cost': round(ev_cost, 2),
+            'petrol_cost': round(petrol_cost, 2),
+            'saving': round(saving, 2),
+            'kwh_needed': round(kwh_needed, 1),
+            'co2_saved': round(co2_saved, 1),
+            'symbol': sym
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)

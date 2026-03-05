@@ -2175,6 +2175,7 @@ var costMode = false;
 function toggleCostMode() {
     costMode = !costMode;
     var btn = document.getElementById('cost-toggle');
+<<<<<<< HEAD
     if (costMode) {
         // Hide all other sections
         var allSections = ['consumer-section','fleet-section','route-section','carbon-section'];
@@ -2206,6 +2207,23 @@ function toggleCostMode() {
         btn.style.borderColor = 'var(--muted)';
         btn.style.color = 'var(--muted)';
         btn.textContent = '💰 COST CALC';
+=======
+    var sections = ['consumer-section','fleet-section','route-section','carbon-section','cost-section'];
+    if (costMode) {
+        btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)'; btn.textContent = '✓ COST CALC';
+        sections.forEach(function(s) { document.getElementById(s).style.display = s === 'cost-section' ? 'block' : 'none'; });
+        fleetMode = false; carbonMode = false; routeMode = false;
+        ['fleet-toggle','carbon-toggle','route-toggle'].forEach(function(id) {
+            var b = document.getElementById(id); if (b) { b.style.borderColor='var(--muted)'; b.style.color='var(--muted)'; }
+        });
+        document.getElementById('fleet-toggle').textContent = 'FLEET MODE';
+        document.getElementById('carbon-toggle').textContent = '🌱 CARBON';
+        document.getElementById('route-toggle').textContent = '🗺 ROUTE PLANNER';
+    } else {
+        btn.style.borderColor = 'var(--muted)'; btn.style.color = 'var(--muted)'; btn.textContent = '💰 COST CALC';
+        document.getElementById('cost-section').style.display = 'none';
+        document.getElementById('consumer-section').style.display = 'block';
+>>>>>>> c235c8205cc52b3e13c1d6d0bc22b465f34f5b54
     }
 }
 
