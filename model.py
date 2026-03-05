@@ -11,7 +11,10 @@ if not os.path.exists("enriched_data.csv"):
     exit()
 
 print("Loading data...")
-df = pd.read_csv("enriched_data.csv")
+df = pd.read_csv("enriched_data.csv", usecols=[
+    'hour', 'day_of_week', 'is_weekend', 'capacity',
+    'lat', 'lon', 'location_type', 'country'
+])
 print(f"Total records: {len(df):,}")
 
 # ── CLEAN ────────────────────────────────────────────────────
@@ -19,10 +22,10 @@ df["capacity"]   = pd.to_numeric(df["capacity"], errors="coerce").fillna(1).clip
 df["is_weekend"] = df["is_weekend"].astype(int)
 
 country_map = {'UK': 0, 'US': 1, 'EU': 2}
-df['country_code'] = df['country'].map(country_map).fillna(0).astype(int) if 'country' in df.columns else 0
+df['country_code'] = df['country'].map(country_map).fillna(0).astype(int)
 
 loc_map = {'motorway': 3, 'supermarket': 2, 'retail': 2, 'council': 1, 'tesla': 2, 'other': 1}
-df['location_code'] = df['location_type'].map(loc_map).fillna(1).astype(int) if 'location_type' in df.columns else 1
+df['location_code'] = df['location_type'].map(loc_map).fillna(1).astype(int)
 
 # ── OCCUPANCY SIMULATION ─────────────────────────────────────
 np.random.seed(42)
@@ -34,24 +37,29 @@ def simulate_occupancy(row):
     loc     = row["location_code"]
     cap     = row["capacity"]
 
+    # Time of day
     if hour in [7, 8, 9]:    p += 0.35
     if hour in [17, 18, 19]: p += 0.40
     if hour in [12, 13]:     p += 0.20
     if hour in [0, 1, 2, 3]: p -= 0.12
 
+    # Weekend
     if row["is_weekend"]:
         if hour in [10, 11, 12, 13, 14, 15]: p += 0.25
         else:                                 p -= 0.05
     else:
         p += 0.10
 
+    # Capacity
     if cap == 1:   p += 0.25
     elif cap == 2: p += 0.10
     elif cap >= 6: p -= 0.15
 
+    # Location
     if loc == 3:   p += 0.20
     elif loc == 2: p += 0.10
 
+    # Country
     if country == 1: p += 0.05
     elif country == 2: p += 0.08
 

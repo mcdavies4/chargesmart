@@ -1,1 +1,1 @@
-hour,day_of_week,is_weekend,capacity,lat,lon,country_code,location_code,is_cold,is_freezing,is_raining,is_bank_holiday,is_school_holiday,is_summer,is_december
+hour,day_of_week,is_weekend,capacity,lat,lon,country_code,location_code
