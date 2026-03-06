@@ -13,8 +13,14 @@ app = Flask(__name__, static_folder='static')
 
 stripe.api_key = os.environ.get('STRIPE_SECRET_KEY', '')
 STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
-PRO_PRICE_ID = os.environ.get('STRIPE_PRO_PRICE_ID', '')
+# Consumer plan price IDs
+PRO_PRICE_ID   = os.environ.get('STRIPE_PRO_PRICE_ID', '')
 FLEET_PRICE_ID = os.environ.get('STRIPE_FLEET_PRICE_ID', '')
+
+# API tier price IDs
+API_DEVELOPER_PRICE_ID = os.environ.get('STRIPE_API_DEVELOPER_PRICE_ID', '')
+API_BUSINESS_PRICE_ID  = os.environ.get('STRIPE_API_BUSINESS_PRICE_ID', '')
+API_ENTERPRISE_PRICE_ID= os.environ.get('STRIPE_API_ENTERPRISE_PRICE_ID', '')
 
 OCM_API_KEY = 'd29bb079-0234-40d8-b0af-a2bb55a7d399'
 OCM_URL = 'https://api.openchargemap.io/v3/poi'
@@ -303,44 +309,64 @@ def nearby():
 @app.route('/create-checkout-session', methods=['POST'])
 def create_checkout_session():
     try:
-        data = request.get_json()
-        plan = data.get('plan', 'pro')
-        email = data.get('email', '')
-        price_id = FLEET_PRICE_ID if plan == 'fleet' else PRO_PRICE_ID
+        data     = request.get_json()
+        plan     = data.get('plan', 'pro')
+        email    = data.get('email', '')
+        api_key  = data.get('api_key', '')
         base_url = request.host_url.rstrip('/')
-        # 14-day free trial for all plans
-        subscription_data = {'trial_period_days': 14}
+
+        # Map plan to Stripe price ID
+        price_map = {
+            'pro':            PRO_PRICE_ID,
+            'fleet':          FLEET_PRICE_ID,
+            'api_developer':  API_DEVELOPER_PRICE_ID,
+            'api_business':   API_BUSINESS_PRICE_ID,
+            'api_enterprise': API_ENTERPRISE_PRICE_ID,
+        }
+        price_id = price_map.get(plan, PRO_PRICE_ID)
+        if not price_id:
+            return jsonify({'error': f'Price ID for plan "{plan}" not configured. Set env var in Railway.'}), 400
+
+        # 14-day free trial for consumer plans, no trial for API plans
+        is_api_plan = plan.startswith('api_')
+        sub_data = {} if is_api_plan else {'trial_period_days': 14}
 
         session = stripe.checkout.Session.create(
             payment_method_types=['card'],
-            mode='subscription',
-            customer_email=email if email else None,
             line_items=[{'price': price_id, 'quantity': 1}],
-            success_url=f'{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}&plan={plan}&email={email}',
-            cancel_url=f'{base_url}/?cancelled=true',
-            metadata={'plan': plan, 'email': email},
-            subscription_data=subscription_data if subscription_data else None
+            mode='subscription',
+            subscription_data=sub_data,
+            customer_email=email or None,
+            success_url=base_url + f'/payment-success?plan={plan}&api_key={api_key}',
+            cancel_url=base_url + ('/' if not is_api_plan else '/developers'),
+            metadata={'plan': plan, 'api_key': api_key},
         )
         return jsonify({'url': session.url})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+
 @app.route('/payment-success')
 def payment_success():
-    session_id = request.args.get('session_id')
-    plan = request.args.get('plan', 'pro')
-    email = request.args.get('email', '')
-    try:
-        session = stripe.checkout.Session.retrieve(session_id)
-        if session.payment_status == 'paid' or session.status == 'complete':
-            customer_email = session.customer_email or email
-            if customer_email:
-                SUBSCRIBERS[customer_email.lower()] = plan
-                save_subscribers()
-            return redirect(f'/?success=true&plan={plan}&email={customer_email}')
-    except Exception as e:
-        print(f"Payment verification error: {e}")
-    return redirect('/?success=true&plan=' + plan)
+    plan    = request.args.get('plan', '')
+    api_key = request.args.get('api_key', '')
+
+    # Upgrade API key tier if this was an API plan purchase
+    if plan.startswith('api_') and api_key:
+        from api_system import load_keys, save_keys
+        tier_map = {
+            'api_developer':  'developer',
+            'api_business':   'business',
+            'api_enterprise': 'enterprise',
+        }
+        new_tier = tier_map.get(plan, 'developer')
+        keys = load_keys()
+        if api_key in keys:
+            keys[api_key]['tier'] = new_tier
+            save_keys(keys)
+
+    return render_template('index.html')
+
 
 @app.route('/check-subscription', methods=['POST'])
 def check_subscription():
@@ -659,6 +685,15 @@ def require_api_key(f):
                 'error': error,
                 'docs': 'https://chargesmart.online/developers'
             }), 401
+        # Check endpoint access for this tier
+        from api_system import check_endpoint_access
+        allowed, access_error = check_endpoint_access(tier, request.path)
+        if not allowed:
+            return jsonify({
+                'error': access_error,
+                'your_tier': tier,
+                'upgrade': 'https://chargesmart.online/developers#pricing'
+            }), 403
         record_usage(api_key)
         request.api_tier = tier
         request.api_remaining = remaining

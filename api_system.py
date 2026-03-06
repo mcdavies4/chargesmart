@@ -24,6 +24,54 @@ TIER_PRICES = {
     'enterprise': 999,
 }
 
+
+# Which endpoints each tier can access
+TIER_ENDPOINTS = {
+    'free': [
+        '/api/v1/predict',
+        '/api/v1/deserts',
+        '/api/v1/journey-cost',
+        '/api/v1/carbon',
+        '/api/v1/reviews',
+    ],
+    'developer': [
+        '/api/v1/predict', '/api/v1/deserts', '/api/v1/journey-cost',
+        '/api/v1/carbon', '/api/v1/reviews',
+        '/api/v1/peak-hours', '/api/v1/operators', '/api/v1/coverage',
+        '/api/v1/nearest', '/api/v1/heatmap', '/api/v1/compare',
+        '/api/v1/operators/compare', '/api/v1/forecast',
+        '/api/v1/gap-score', '/api/v1/predict/batch',
+    ],
+    'business': 'all',
+    'enterprise': 'all',
+}
+
+GOV_BIZ_ENDPOINTS = [
+    '/api/v1/gov/investment-priority', '/api/v1/gov/charger-density',
+    '/api/v1/gov/planning', '/api/v1/gov/netzero', '/api/v1/gov/disparity',
+    '/api/v1/biz/site-score', '/api/v1/biz/competitor-audit',
+    '/api/v1/biz/depot-optimise', '/api/v1/biz/property-score',
+    '/api/v1/biz/retail-opportunity',
+]
+
+def check_endpoint_access(tier, endpoint_path):
+    """Returns (allowed, error_message)"""
+    allowed = TIER_ENDPOINTS.get(tier, TIER_ENDPOINTS['free'])
+    if allowed == 'all':
+        return True, None
+    # Strip query string
+    path = endpoint_path.split('?')[0]
+    if path in allowed:
+        return True, None
+    # Determine which tier unlocks it
+    if path in GOV_BIZ_ENDPOINTS:
+        needed = 'Business'
+        price  = '£199/month'
+    else:
+        needed = 'Developer'
+        price  = '£49/month'
+    return False, f'This endpoint requires the {needed} tier ({price}). Upgrade at chargesmart.online/developers'
+
 def load_keys():
     if os.path.exists(KEYS_FILE):
         with open(KEYS_FILE) as f:
