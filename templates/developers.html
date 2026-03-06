@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ChargeSmart API — Developer Docs</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
@@ -129,7 +132,7 @@
     <div class="stats-row">
         <div class="stat-card"><div class="stat-val">8.5M</div><div class="stat-lbl">DATA POINTS</div></div>
         <div class="stat-card"><div class="stat-val">7</div><div class="stat-lbl">COUNTRIES</div></div>
-        <div class="stat-card"><div class="stat-val">67%+</div><div class="stat-lbl">AI ACCURACY</div></div>
+        <div class="stat-card"><div class="stat-val">83%+</div><div class="stat-lbl">AI ACCURACY</div></div>
         <div class="stat-card"><div class="stat-val">5</div><div class="stat-lbl">API ENDPOINTS</div></div>
         <div class="stat-card"><div class="stat-val">99.9%</div><div class="stat-lbl">UPTIME</div></div>
     </div>
@@ -222,7 +225,56 @@
                     <li>99.9% uptime SLA</li>
                     <li>On-premise option</li>
                 </ul>
-                <a href="mailto:api@chargesmart.online" class="plan-btn plan-btn-paid">CONTACT US</a>
+                <a href="/cdn-cgi/l/email-protection#a7c6d7cee7c4cfc6d5c0c2d4cac6d5d389c8c9cbcec9c2" class="plan-btn plan-btn-paid">CONTACT US</a>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- HOW IT WORKS -->
+    <div style="margin-bottom:48px;">
+        <div class="section-title">// HOW IT WORKS</div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:32px;">
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;">
+                <div style="font-size:28px;margin-bottom:10px;">1️⃣</div>
+                <div style="font-size:15px;font-weight:700;margin-bottom:6px;">Get your free key</div>
+                <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);line-height:1.6;">Enter your email below. Your API key is generated instantly — no credit card, no waitlist.</div>
+            </div>
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;">
+                <div style="font-size:28px;margin-bottom:10px;">2️⃣</div>
+                <div style="font-size:15px;font-weight:700;margin-bottom:6px;">Add key to requests</div>
+                <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);line-height:1.6;">Pass your key as a header or URL parameter on every API call. Works from any language.</div>
+            </div>
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;">
+                <div style="font-size:28px;margin-bottom:10px;">3️⃣</div>
+                <div style="font-size:15px;font-weight:700;margin-bottom:6px;">Call any endpoint</div>
+                <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);line-height:1.6;">Hit any of our 25 endpoints and get back clean JSON. Build apps, dashboards, tools.</div>
+            </div>
+        </div>
+
+        <!-- LIVE EXAMPLE -->
+        <div style="background:var(--card);border:1px solid rgba(0,255,135,0.2);border-radius:14px;padding:24px;">
+            <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--green);letter-spacing:2px;margin-bottom:14px;">// COMPLETE WORKING EXAMPLE</div>
+            <pre style="font-family:'Space Mono',monospace;font-size:12px;line-height:1.8;overflow-x:auto;"><span style="color:#6b6b80">// Step 1 — get your key from the form below
+// Step 2 — paste it here and run</span>
+
+<span style="color:#4488ff">const</span> <span style="color:#e0e0e0">API_KEY</span> = <span style="color:#00ff87">'cs_live_your_key_here'</span>;
+
+<span style="color:#4488ff">const</span> <span style="color:#e0e0e0">response</span> = <span style="color:#4488ff">await</span> fetch(
+  <span style="color:#00ff87">`https://chargesmart.online/api/v1/predict</span>
+  <span style="color:#00ff87">  ?lat=51.5074&lon=-0.1278&key=${API_KEY}`</span>
+);
+
+<span style="color:#4488ff">const</span> <span style="color:#e0e0e0">data</span> = <span style="color:#4488ff">await</span> response.json();
+console.log(data.data.prediction);   <span style="color:#6b6b80">// "free" or "busy"</span>
+console.log(data.data.probability_free);  <span style="color:#6b6b80">// 73.2</span>
+console.log(data.data.best_time_today);   <span style="color:#6b6b80">// "02:00"</span></pre>
+            <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+                <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);background:rgba(0,255,135,0.05);border:1px solid rgba(0,255,135,0.15);border-radius:6px;padding:4px 10px;">✓ Works in browser</div>
+                <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);background:rgba(0,255,135,0.05);border:1px solid rgba(0,255,135,0.15);border-radius:6px;padding:4px 10px;">✓ Works in Python</div>
+                <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);background:rgba(0,255,135,0.05);border:1px solid rgba(0,255,135,0.15);border-radius:6px;padding:4px 10px;">✓ Works in any language</div>
+                <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);background:rgba(0,255,135,0.05);border:1px solid rgba(0,255,135,0.15);border-radius:6px;padding:4px 10px;">✓ Returns JSON</div>
             </div>
         </div>
     </div>
@@ -689,7 +741,7 @@ print(f"Best time: {data['best_time_today']}")</pre>
     </footer>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 function toggleEndpoint(id) {
     var el = document.getElementById(id);
     el.classList.toggle('open');
@@ -697,17 +749,43 @@ function toggleEndpoint(id) {
 
 function registerKey() {
     var email = document.getElementById('reg-email').value.trim();
-    if (!email || !email.includes('@')) { alert('Please enter a valid email'); return; }
+    if (!email || !email.includes('@')) { 
+        alert('Please enter a valid email address'); 
+        return; 
+    }
+    var btn = document.querySelector('[onclick="registerKey()"]');
+    var originalText = btn.textContent;
+    btn.textContent = 'GENERATING...';
+    btn.disabled = true;
+
     fetch('/api/v1/keys/register', {
         method: 'POST',
-        headers: {'Content-Type':'application/json'},
+        headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({email: email})
-    }).then(function(r){return r.json();}).then(function(d){
-        if (d.error) { alert(d.error); return; }
-        document.getElementById('key-display').textContent = d.api_key;
-        document.getElementById('key-msg').textContent = d.existing ? 'Welcome back!' : 'Free tier — 100 calls/day';
+    })
+    .then(function(r) { 
+        if (!r.ok) throw new Error('Server error: ' + r.status);
+        return r.json(); 
+    })
+    .then(function(d) {
+        btn.textContent = originalText;
+        btn.disabled = false;
+        if (d.error) { 
+            alert('Error: ' + d.error); 
+            return; 
+        }
+        var key = d.api_key || d.key;
+        if (!key) { alert('No key returned — please try again'); return; }
+        document.getElementById('key-display').textContent = key;
+        document.getElementById('key-msg').textContent = d.existing ? '✓ Welcome back — existing key returned' : '✓ Free tier · 100 calls/day';
         document.getElementById('key-result').style.display = 'block';
-    }).catch(function(){ alert('Could not register key. Please try again.'); });
+        document.getElementById('key-result').scrollIntoView({behavior:'smooth'});
+    })
+    .catch(function(err) { 
+        btn.textContent = originalText;
+        btn.disabled = false;
+        alert('Could not connect to server. Please try again.\nError: ' + err.message); 
+    });
 }
 
 function copyKey() {
@@ -729,7 +807,4 @@ function tryEndpoint(name) {
     if (!url) return;
     var resultEl = document.getElementById('try-' + name + '-result');
     var containerEl = document.getElementById('try-' + name);
-    resultEl.textContent = 'Loading...';
-    containerEl.style.display = 'block';
-    fetch(url, {headers: {'Authorization': 'Bearer ' + key}})
-    .then(function(r){
+    resultEl.

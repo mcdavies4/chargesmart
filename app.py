@@ -209,7 +209,11 @@ def lookup_location(query):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    resp = make_response(render_template('index.html'))
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp
 
 @app.route('/predict')
 def predict():
@@ -945,7 +949,11 @@ def api_reviews():
 # ── DEVELOPER DASHBOARD PAGE ─────────────────────────────────
 @app.route('/developers')
 def developers_page():
-    return render_template('developers.html')
+    resp = make_response(render_template('developers.html'))
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp
 
 
 # ── NETWORK UPTIME LEADERBOARD ───────────────────────────────
@@ -1244,6 +1252,17 @@ def admin_dashboard():
             <button type="submit" style="padding:10px 20px;background:#00ff87;border:none;border-radius:6px;color:#000;font-family:monospace;font-weight:700;cursor:pointer;margin-left:8px;">ENTER</button>
         </form></body></html>''', 401
     return render_template('admin.html')
+
+
+@app.route('/version')
+def version():
+    import datetime
+    return jsonify({
+        'version': '2.0.0',
+        'deployed': datetime.datetime.now().strftime('%Y-%m-%d %H:%M'),
+        'endpoints': 25,
+        'status': 'live'
+    })
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
@@ -2527,6 +2546,4 @@ def auth_update_profile():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
-
-
 
