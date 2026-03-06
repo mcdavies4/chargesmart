@@ -1,3 +1,27 @@
+
+TIER_LIMITS = {
+    'free':           100,
+    'pro':            500,
+    'fleet':          2000,
+    'api_developer':  10000,
+    'api_business':   100000,
+    'api_enterprise': 9999999,
+}
+
+TIER_PRICES = {
+    'free':           0,
+    'pro':            9.99,
+    'fleet':          29.99,
+    'api_developer':  49,
+    'api_business':   199,
+    'api_enterprise': 999,
+}
+
+TIER_PRIORITY = {
+    'free': 0, 'pro': 1, 'fleet': 2,
+    'api_developer': 3, 'api_business': 4, 'api_enterprise': 5
+}
+
 """
 ChargeSmart API Key System
 Handles key generation, validation, rate limiting and usage tracking

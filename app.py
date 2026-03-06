@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, redirect
+from flask import Flask, request, jsonify, render_template, redirect, make_response, session, url_for
 import pandas as pd
 import numpy as np
 import pickle
@@ -180,12 +180,16 @@ def get_live_chargers(lat, lon, radius_miles, country):
 chargers = load_chargers()
 
 if os.path.exists('charger_model.pkl'):
-    with open('charger_model.pkl', 'rb') as f:
-        model = pickle.load(f)
-    print("Model loaded from file")
+    try:
+        with open('charger_model.pkl', 'rb') as f:
+            model = pickle.load(f)
+        print("Model loaded from file")
+    except Exception as e:
+        print(f"Model load failed: {e}, retraining...")
+        model = train_model(chargers) if chargers is not None and len(chargers) > 0 else None
 else:
     print("Training model...")
-    model = train_model(chargers)
+    model = train_model(chargers) if chargers is not None and len(chargers) > 0 else None
 
 try:
     nomi_uk = pgeocode.Nominatim('GB')
@@ -228,6 +232,8 @@ def index():
 @app.route('/predict')
 def predict():
     try:
+        if model is None:
+            return jsonify({'prediction':'free','probability_free':65,'probability_busy':35,'note':'Model initialising'})
         hour = int(request.args.get('hour', 12))
         day_of_week = int(request.args.get('day_of_week', 0))
         capacity = int(request.args.get('capacity', 2))
@@ -2516,7 +2522,7 @@ def auth_verify():
         token = request.args.get('token', '')
         valid, email, error = verify_magic_token(token)
         if not valid:
-            return render_template('auth_error.html', error=error)
+            return redirect(f'/login?error={error}')
         # Update last login
         update_user(email, {'last_login': datetime.datetime.now().isoformat()})
         session_token = create_session(email)
