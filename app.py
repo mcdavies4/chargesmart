@@ -2528,3 +2528,4 @@ def auth_update_profile():
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+
