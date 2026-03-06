@@ -95,6 +95,13 @@
         .tabs{display:flex;gap:2px;margin-bottom:12px;}
         .tab{font-family:'Space Mono',monospace;font-size:10px;padding:5px 14px;border-radius:6px;cursor:pointer;color:var(--muted);background:none;border:none;}
         .tab.active{background:rgba(0,255,135,0.1);color:var(--green);}
+        /* LOCATION TABS */
+        .loc-tab{font-family:'Space Mono',monospace;font-size:10px;padding:5px 14px;border-radius:6px;cursor:pointer;color:var(--muted);background:none;border:1px solid var(--border);transition:all 0.15s;}
+        .loc-tab:hover{color:var(--text);border-color:rgba(255,255,255,0.2);}
+        .loc-tab.active{background:rgba(0,255,135,0.1);color:var(--green);border-color:rgba(0,255,135,0.3);}
+        .resolve-btn{background:var(--green);border:none;border-radius:6px;padding:8px 14px;color:#0a0a0f;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all 0.2s;}
+        .resolve-btn:hover{box-shadow:0 4px 12px rgba(0,255,135,0.3);}
+        .resolve-btn:disabled{opacity:0.5;cursor:not-allowed;}
 
         @media(max-width:700px){
             .layout{grid-template-columns:1fr;}
@@ -175,6 +182,64 @@
                 <div class="panel-path" id="panel-path">GET /api/v1/predict</div>
             </div>
 
+            <!-- LOCATION RESOLVER -->
+            <div class="params-section" id="location-resolver">
+                <div class="params-title">// LOCATION <span style="color:var(--muted);font-size:9px;margin-left:8px;">choose any format</span></div>
+                <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+                    <button class="loc-tab active" onclick="setLocMode('latlon')"   id="tab-latlon">LAT / LON</button>
+                    <button class="loc-tab" onclick="setLocMode('postcode')" id="tab-postcode">POSTCODE / ZIP</button>
+                    <button class="loc-tab" onclick="setLocMode('city')"     id="tab-city">CITY NAME</button>
+                    <button class="loc-tab" onclick="setLocMode('address')"  id="tab-address">ADDRESS</button>
+                </div>
+                <!-- LAT/LON -->
+                <div id="loc-latlon" class="loc-panel">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div>
+                            <div style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:4px;">LATITUDE</div>
+                            <input type="text" class="param-input" id="loc-lat" value="51.5074" placeholder="51.5074" oninput="syncLatLon()">
+                        </div>
+                        <div>
+                            <div style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:4px;">LONGITUDE</div>
+                            <input type="text" class="param-input" id="loc-lon" value="-0.1278" placeholder="-0.1278" oninput="syncLatLon()">
+                        </div>
+                    </div>
+                    <button onclick="useMyLocation()" style="margin-top:8px;background:none;border:1px solid var(--border);border-radius:6px;padding:5px 12px;color:var(--muted);font-family:Space Mono,monospace;font-size:10px;cursor:pointer;" id="gps-btn">📍 USE MY LOCATION</button>
+                </div>
+                <!-- POSTCODE -->
+                <div id="loc-postcode" class="loc-panel" style="display:none;">
+                    <div style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:4px;">UK POSTCODE OR US ZIP CODE</div>
+                    <div style="display:flex;gap:8px;">
+                        <input type="text" class="param-input" id="loc-postcode-val" placeholder="e.g. SW1A 1AA  or  10001" style="flex:1;" onkeydown="if(event.key==='Enter')resolveLocation('postcode')">
+                        <button onclick="resolveLocation('postcode')" class="resolve-btn" id="btn-postcode">LOOKUP →</button>
+                    </div>
+                    <div id="result-postcode" style="font-family:Space Mono,monospace;font-size:11px;margin-top:8px;min-height:18px;"></div>
+                </div>
+                <!-- CITY -->
+                <div id="loc-city" class="loc-panel" style="display:none;">
+                    <div style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:4px;">CITY OR TOWN NAME</div>
+                    <div style="display:flex;gap:8px;">
+                        <input type="text" class="param-input" id="loc-city-val" placeholder="e.g. Manchester, Lagos, Dubai, Nairobi" style="flex:1;" onkeydown="if(event.key==='Enter')resolveLocation('city')">
+                        <button onclick="resolveLocation('city')" class="resolve-btn" id="btn-city">LOOKUP →</button>
+                    </div>
+                    <div id="result-city" style="font-family:Space Mono,monospace;font-size:11px;margin-top:8px;min-height:18px;"></div>
+                </div>
+                <!-- ADDRESS -->
+                <div id="loc-address" class="loc-panel" style="display:none;">
+                    <div style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:4px;">ADDRESS OR LANDMARK</div>
+                    <div style="display:flex;gap:8px;">
+                        <input type="text" class="param-input" id="loc-address-val" placeholder="e.g. Canary Wharf London, Heathrow Airport" style="flex:1;" onkeydown="if(event.key==='Enter')resolveLocation('address')">
+                        <button onclick="resolveLocation('address')" class="resolve-btn" id="btn-address">LOOKUP →</button>
+                    </div>
+                    <div id="result-address" style="font-family:Space Mono,monospace;font-size:11px;margin-top:8px;min-height:18px;"></div>
+                </div>
+                <!-- RESOLVED DISPLAY -->
+                <div id="resolved-coords" style="display:none;margin-top:10px;background:rgba(0,255,135,0.06);border:1px solid rgba(0,255,135,0.2);border-radius:8px;padding:10px 14px;font-family:Space Mono,monospace;font-size:11px;">
+                    <span style="color:var(--green);">✓ RESOLVED</span>
+                    <span id="resolved-display" style="color:var(--text);margin-left:8px;"></span>
+                </div>
+            </div>
+
+            <!-- PARAMS -->
             <div class="params-section">
                 <div class="params-title">// PARAMETERS</div>
                 <div id="params-container"></div>
@@ -209,6 +274,132 @@
 
 <script>
 var BASE = window.location.origin;
+
+// ── LOCATION STATE ────────────────────────────────────────────
+var resolvedLat = '51.5074';
+var resolvedLon = '-0.1278';
+var currentLocMode = 'latlon';
+
+function setLocMode(mode) {
+    currentLocMode = mode;
+    // Hide all panels
+    ['latlon','postcode','city','address'].forEach(function(m) {
+        document.getElementById('loc-' + m).style.display = 'none';
+        document.getElementById('tab-' + m).classList.remove('active');
+    });
+    // Show selected
+    document.getElementById('loc-' + mode).style.display = 'block';
+    document.getElementById('tab-' + mode).classList.add('active');
+    // Hide resolved banner when switching
+    if (mode === 'latlon') {
+        document.getElementById('resolved-coords').style.display = 'none';
+    }
+    updateUrlPreview();
+}
+
+function syncLatLon() {
+    resolvedLat = document.getElementById('loc-lat').value.trim();
+    resolvedLon = document.getElementById('loc-lon').value.trim();
+    updateUrlPreview();
+}
+
+function getResolvedCoords() {
+    if (currentLocMode === 'latlon') {
+        return {
+            lat: document.getElementById('loc-lat').value.trim(),
+            lon: document.getElementById('loc-lon').value.trim()
+        };
+    }
+    return { lat: resolvedLat, lon: resolvedLon };
+}
+
+function showResolved(name, lat, lon) {
+    resolvedLat = String(lat);
+    resolvedLon = String(lon);
+    document.getElementById('resolved-display').textContent =
+        name + '  →  ' + Number(lat).toFixed(4) + ', ' + Number(lon).toFixed(4);
+    document.getElementById('resolved-coords').style.display = 'block';
+    updateUrlPreview();
+}
+
+function showResolveError(panel, msg) {
+    var el = document.getElementById('result-' + panel);
+    if (el) el.innerHTML = '<span style="color:var(--red);">✗ ' + msg + '</span>';
+}
+
+function showResolveOk(panel, msg) {
+    var el = document.getElementById('result-' + panel);
+    if (el) el.innerHTML = '<span style="color:var(--green);">✓ ' + msg + '</span>';
+}
+
+// ── GEOCODE VIA NOMINATIM (free, no key) ──────────────────────
+function resolveLocation(type) {
+    var inputEl, query, btnId;
+    if (type === 'postcode') {
+        inputEl = document.getElementById('loc-postcode-val');
+        btnId   = 'btn-postcode';
+    } else if (type === 'city') {
+        inputEl = document.getElementById('loc-city-val');
+        btnId   = 'btn-city';
+    } else {
+        inputEl = document.getElementById('loc-address-val');
+        btnId   = 'btn-address';
+    }
+
+    query = inputEl.value.trim();
+    if (!query) return;
+
+    var btn = document.getElementById(btnId);
+    btn.textContent = '...';
+    btn.disabled = true;
+
+    var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q='
+              + encodeURIComponent(query);
+
+    fetch(url, { headers: { 'Accept-Language': 'en' } })
+    .then(function(r) { return r.json(); })
+    .then(function(results) {
+        btn.textContent = 'LOOKUP →';
+        btn.disabled = false;
+        if (!results || results.length === 0) {
+            showResolveError(type, 'Not found — try a different spelling');
+            return;
+        }
+        var r = results[0];
+        var name = r.display_name.split(',').slice(0,2).join(',');
+        showResolveOk(type, name);
+        showResolved(name, parseFloat(r.lat), parseFloat(r.lon));
+    })
+    .catch(function(err) {
+        btn.textContent = 'LOOKUP →';
+        btn.disabled = false;
+        showResolveError(type, 'Lookup failed — check connection');
+    });
+}
+
+// ── GPS ───────────────────────────────────────────────────────
+function useMyLocation() {
+    var btn = document.getElementById('gps-btn');
+    if (!navigator.geolocation) {
+        btn.textContent = '📍 Not supported';
+        return;
+    }
+    btn.textContent = '📍 Locating...';
+    navigator.geolocation.getCurrentPosition(
+        function(pos) {
+            var lat = pos.coords.latitude.toFixed(5);
+            var lon = pos.coords.longitude.toFixed(5);
+            document.getElementById('loc-lat').value = lat;
+            document.getElementById('loc-lon').value = lon;
+            resolvedLat = lat;
+            resolvedLon = lon;
+            btn.textContent = '📍 Got location ✓';
+            updateUrlPreview();
+        },
+        function() { btn.textContent = '📍 USE MY LOCATION'; }
+    );
+}
+
 var currentEndpoint = 'predict';
 var lastRawResponse = null;
 var currentTab = 'pretty';
@@ -455,6 +646,10 @@ function selectEndpoint(id) {
     }
     document.getElementById('params-container').innerHTML = html;
 
+    // Show/hide location resolver based on whether endpoint needs lat/lon
+    var needsLocation = ep.params.some(function(p) { return p.name === 'lat' || p.name === 'lon'; });
+    document.getElementById('location-resolver').style.display = needsLocation ? 'block' : 'none';
+
     // Reset response
     document.getElementById('response-box').innerHTML = '<div class="response-empty">Click RUN to call this endpoint</div>';
     document.getElementById('response-meta').innerHTML = '';
@@ -467,12 +662,20 @@ function selectEndpoint(id) {
 }
 
 function buildUrl() {
-    var key = document.getElementById('api-key-input').value.trim();
-    var ep  = ENDPOINTS[currentEndpoint];
+    var key    = document.getElementById('api-key-input').value.trim();
+    var ep     = ENDPOINTS[currentEndpoint];
+    var coords = getResolvedCoords();
     var params = [];
     ep.params.forEach(function(p) {
-        var el = document.getElementById('param-' + p.name);
-        if (el && el.value) params.push(p.name + '=' + encodeURIComponent(el.value));
+        // Replace lat/lon with resolved values
+        if (p.name === 'lat') {
+            if (coords.lat) params.push('lat=' + encodeURIComponent(coords.lat));
+        } else if (p.name === 'lon') {
+            if (coords.lon) params.push('lon=' + encodeURIComponent(coords.lon));
+        } else {
+            var el = document.getElementById('param-' + p.name);
+            if (el && el.value) params.push(p.name + '=' + encodeURIComponent(el.value));
+        }
     });
     if (key) params.push('key=' + key);
     return BASE + ep.path + (params.length ? '?' + params.join('&') : '');
