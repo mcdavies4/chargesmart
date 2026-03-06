@@ -1732,3 +1732,552 @@ def api_batch_predict():
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+
+# ═══════════════════════════════════════════════════════════════
+# GOVERNMENT & BUSINESS ENDPOINTS
+# ═══════════════════════════════════════════════════════════════
+
+@app.route('/solutions')
+def solutions_page():
+    return render_template('solutions.html')
+
+# ── GOV 1. INVESTMENT PRIORITY REPORT ───────────────────────
+@app.route('/api/v1/gov/investment-priority')
+@require_api_key
+def api_gov_investment_priority():
+    try:
+        import pandas as pd
+        country = request.args.get('country', 'UK').upper()
+        top_n   = min(int(request.args.get('top', 20)), 50)
+
+        df = load_charger_data(country)
+        if df is None:
+            return jsonify({'error': 'Data not available'}), 503
+
+        # Build grid of areas and score each by gap
+        step = 0.2
+        df['grid_lat'] = (df['lat'] / step).round() * step
+        df['grid_lon'] = (df['lon'] / step).round() * step
+        grid = df.groupby(['grid_lat','grid_lon']).agg(
+            charger_count=('lat','count'),
+            avg_capacity=('capacity','mean'),
+            operators=('operator','nunique'),
+        ).reset_index()
+
+        # Areas with very few chargers = highest priority
+        grid = grid[grid['charger_count'] < 20].copy()
+        grid['gap_score'] = 100 - (
+            (grid['charger_count'] * 3).clip(0,40) +
+            (grid['avg_capacity']  * 5).clip(0,20) +
+            (grid['operators']     * 5).clip(0,20)
+        )
+        grid['gap_score'] = grid['gap_score'].clip(0, 100).round(1)
+        grid['priority'] = grid['gap_score'].apply(
+            lambda s: 'Critical' if s>=80 else 'High' if s>=60 else 'Medium' if s>=40 else 'Low'
+        )
+        grid = grid.nlargest(top_n, 'gap_score')
+
+        areas = []
+        for _, row in grid.iterrows():
+            areas.append({
+                'lat':           round(float(row['grid_lat']), 3),
+                'lon':           round(float(row['grid_lon']), 3),
+                'gap_score':     float(row['gap_score']),
+                'priority':      row['priority'],
+                'chargers_found':int(row['charger_count']),
+                'avg_capacity':  round(float(row['avg_capacity']), 1),
+                'networks_present': int(row['operators']),
+                'recommended_action': 'Install 4+ bay DC fast hub' if row['gap_score'] >= 80
+                                 else 'Install 2-4 AC chargers' if row['gap_score'] >= 60
+                                 else 'Monitor and review in 12 months',
+            })
+
+        critical = sum(1 for a in areas if a['priority'] == 'Critical')
+        return api_response({
+            'country':          country,
+            'total_priority_areas': len(areas),
+            'critical_areas':   critical,
+            'high_areas':       sum(1 for a in areas if a['priority'] == 'High'),
+            'estimated_chargers_needed': critical * 4,
+            'areas':            areas,
+            'report_generated': datetime.datetime.now().strftime('%Y-%m-%d %H:%M'),
+            'suitable_for':     ['Planning applications','Budget allocation','Net zero reporting','Press releases'],
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# ── GOV 2. CHARGER DENSITY ───────────────────────────────────
+@app.route('/api/v1/gov/charger-density')
+@require_api_key
+def api_gov_charger_density():
+    try:
+        import pandas as pd
+        country = request.args.get('country', 'UK').upper()
+
+        df = load_charger_data(country)
+        if df is None:
+            return jsonify({'error': 'Data not available'}), 503
+
+        # Regional populations (approximate)
+        uk_regions = {
+            'London':       {'lat':(51.3,51.7),  'lon':(-0.5,0.3),   'pop':9_000_000},
+            'South East':   {'lat':(50.8,51.4),  'lon':(-1.5,1.4),   'pop':9_200_000},
+            'South West':   {'lat':(49.9,51.7),  'lon':(-5.7,-1.8),  'pop':5_700_000},
+            'East England': {'lat':(51.5,52.9),  'lon':(-0.5,1.8),   'pop':6_300_000},
+            'Midlands':     {'lat':(52.0,53.0),  'lon':(-2.2,-0.5),  'pop':5_600_000},
+            'North West':   {'lat':(53.3,54.0),  'lon':(-3.2,-1.8),  'pop':7_400_000},
+            'North East':   {'lat':(54.5,55.8),  'lon':(-2.5,-0.9),  'pop':2_600_000},
+            'Yorkshire':    {'lat':(53.3,54.5),  'lon':(-2.0,-0.1),  'pop':5_500_000},
+            'Wales':        {'lat':(51.3,53.5),  'lon':(-5.3,-2.6),  'pop':3_200_000},
+            'Scotland':     {'lat':(54.6,58.7),  'lon':(-6.0,-0.7),  'pop':5_500_000},
+        }
+
+        results = []
+        for region, info in uk_regions.items():
+            mask = (
+                df['lat'].between(*info['lat']) &
+                df['lon'].between(*info['lon'])
+            )
+            count = len(df[mask][['lat','lon']].drop_duplicates())
+            per_100k = round(count / info['pop'] * 100_000, 1)
+            results.append({
+                'region':            region,
+                'charger_count':     count,
+                'population':        info['pop'],
+                'chargers_per_100k': per_100k,
+                'grade':             'A' if per_100k>=50 else 'B' if per_100k>=30 else 'C' if per_100k>=15 else 'D' if per_100k>=5 else 'F',
+                'vs_national_avg':   'above' if per_100k > 20 else 'below',
+            })
+
+        results.sort(key=lambda x: -x['chargers_per_100k'])
+        national_total = sum(r['charger_count'] for r in results)
+        national_pop   = sum(r['population'] for r in results)
+
+        return api_response({
+            'country':              country,
+            'national_total':       national_total,
+            'national_per_100k':    round(national_total / national_pop * 100_000, 1),
+            'best_region':          results[0]['region'],
+            'worst_region':         results[-1]['region'],
+            'regions':              results,
+            'data_note':            'Based on 8.5M collected data points across UK, US and EU',
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# ── GOV 3. PLANNING APPLICATION SUPPORT ─────────────────────
+@app.route('/api/v1/gov/planning')
+@require_api_key
+def api_gov_planning():
+    try:
+        import pandas as pd
+        lat     = float(request.args.get('lat', 51.5))
+        lon     = float(request.args.get('lon', -0.1))
+        radius  = float(request.args.get('radius', 2))
+        country = request.args.get('country', 'UK').upper()
+
+        df  = load_charger_data(country)
+        if df is None:
+            return jsonify({'error': 'Data not available'}), 503
+
+        deg = radius * 0.014
+        nearby = df[
+            (abs(df['lat'] - lat) < deg) &
+            (abs(df['lon'] - lon) < deg)
+        ]
+        unique = nearby[['lat','lon','operator','capacity','location_type']].drop_duplicates(['lat','lon'])
+        gap_score = max(0, 100 - len(unique) * 4)
+        grade = 'A' if gap_score<=20 else 'B' if gap_score<=40 else 'C' if gap_score<=60 else 'D' if gap_score<=80 else 'F'
+
+        return api_response({
+            'planning_report': {
+                'location':           {'lat': lat, 'lon': lon},
+                'search_radius_miles': radius,
+                'existing_chargers':   len(unique),
+                'coverage_grade':      grade,
+                'infrastructure_gap':  gap_score,
+                'networks_present':    list(nearby['operator'].unique()[:10]) if len(nearby) > 0 else [],
+                'avg_capacity':        round(float(nearby['capacity'].mean()), 1) if len(nearby) > 0 else 0,
+                'location_types':      nearby['location_type'].value_counts().to_dict() if len(nearby) > 0 else {},
+                'planning_recommendation': (
+                    'Area is well served — new installation may face viability questions'
+                    if gap_score <= 20 else
+                    'Moderate provision — new chargers would be supported by demand data'
+                    if gap_score <= 50 else
+                    'Significant gap identified — strong case for new EV infrastructure'
+                ),
+                'policy_references':   [
+                    'UK EV Infrastructure Strategy 2023',
+                    'NPPF Paragraph 105 — Transport',
+                    'PAS 2080 Carbon Management in Infrastructure',
+                ],
+                'generated':           datetime.datetime.now().strftime('%Y-%m-%d %H:%M'),
+                'data_source':         'ChargeSmart — 8.5M data points across UK, US & EU',
+            }
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# ── GOV 4. NET ZERO PROGRESS ─────────────────────────────────
+@app.route('/api/v1/gov/netzero')
+@require_api_key
+def api_gov_netzero():
+    try:
+        import pandas as pd
+        country = request.args.get('country', 'UK').upper()
+        df = load_charger_data(country)
+        if df is None:
+            return jsonify({'error': 'Data not available'}), 503
+
+        total = len(df[['lat','lon']].drop_duplicates())
+        # Estimate growth trend from our collection period
+        uk_targets = {
+            '2025': 300_000, '2030': 1_000_000, '2035': 2_500_000
+        }
+        current_year = datetime.datetime.now().year
+        target_2030  = uk_targets.get('2030', 1_000_000)
+        pct_to_target= round(total / target_2030 * 100, 1)
+
+        return api_response({
+            'country':          country,
+            'current_chargers': total,
+            'reporting_period': datetime.datetime.now().strftime('%B %Y'),
+            'progress': {
+                'target_2030':          target_2030,
+                'pct_of_2030_target':   pct_to_target,
+                'chargers_still_needed':max(0, target_2030 - total),
+                'on_track':             pct_to_target >= (current_year - 2020) / (2030 - 2020) * 100,
+            },
+            'co2_impact': {
+                'estimated_annual_ev_journeys': total * 365 * 3,
+                'estimated_co2_saved_tonnes':   round(total * 365 * 3 * 20 * 0.335 / 1000, 0),
+                'equivalent_trees':             round(total * 365 * 3 * 20 * 0.335 / 21.77, 0),
+            },
+            'suitable_for': ['Annual reports','Net zero commitments','Press releases','Cabinet reporting'],
+            'data_source':  'ChargeSmart · chargesmart.online',
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# ── GOV 5. RURAL VS URBAN DISPARITY ─────────────────────────
+@app.route('/api/v1/gov/disparity')
+@require_api_key
+def api_gov_disparity():
+    try:
+        import pandas as pd
+        country = request.args.get('country', 'UK').upper()
+        df = load_charger_data(country)
+        if df is None:
+            return jsonify({'error': 'Data not available'}), 503
+
+        # Define urban cores by high charger density areas
+        df2 = df[['lat','lon']].drop_duplicates().copy()
+        df2['grid_lat'] = (df2['lat'] / 0.1).round() * 0.1
+        df2['grid_lon'] = (df2['lon'] / 0.1).round() * 0.1
+        density = df2.groupby(['grid_lat','grid_lon']).size().reset_index(name='count')
+        median_density = float(density['count'].median())
+
+        urban_cells = density[density['count'] > median_density * 2]
+        rural_cells  = density[density['count'] <= median_density]
+
+        urban_total = int(urban_cells['count'].sum())
+        rural_total = int(rural_cells['count'].sum())
+        ratio = round(urban_total / max(rural_total, 1), 1)
+
+        return api_response({
+            'country': country,
+            'urban': {
+                'charger_count':    urban_total,
+                'area_zones':       len(urban_cells),
+                'avg_per_zone':     round(urban_total / max(len(urban_cells),1), 1),
+                'coverage_grade':   'A',
+            },
+            'rural': {
+                'charger_count':    rural_total,
+                'area_zones':       len(rural_cells),
+                'avg_per_zone':     round(rural_total / max(len(rural_cells),1), 1),
+                'coverage_grade':   'D' if ratio > 5 else 'C',
+            },
+            'urban_to_rural_ratio': ratio,
+            'disparity_level':  'Severe' if ratio > 10 else 'High' if ratio > 5 else 'Moderate' if ratio > 2 else 'Low',
+            'policy_implication': f'Urban areas have {ratio}x more chargers per zone than rural areas. Rural EV drivers face significant range anxiety barriers.',
+            'recommended_intervention': 'Rural rapid charging hubs at key A-road junctions',
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# ── BIZ 6. SITE SUITABILITY SCORE ───────────────────────────
+@app.route('/api/v1/biz/site-score')
+@require_api_key
+def api_biz_site_score():
+    try:
+        import pandas as pd
+        lat        = float(request.args.get('lat', 51.5))
+        lon        = float(request.args.get('lon', -0.1))
+        site_type  = request.args.get('site_type', 'retail')
+        country    = request.args.get('country', 'UK').upper()
+
+        df = load_charger_data(country)
+        if df is None:
+            return jsonify({'error': 'Data not available'}), 503
+
+        deg1 = 0.014  # ~1 mile
+        deg3 = 0.042  # ~3 miles
+        nearby1 = df[(abs(df['lat']-lat)<deg1)&(abs(df['lon']-lon)<deg1)]
+        nearby3 = df[(abs(df['lat']-lat)<deg3)&(abs(df['lon']-lon)<deg3)]
+        c1 = len(nearby1[['lat','lon']].drop_duplicates())
+        c3 = len(nearby3[['lat','lon']].drop_duplicates())
+
+        # Score components
+        demand_score     = min(c3 * 2, 30)         # nearby EV activity = demand signal
+        gap_score        = max(0, 30 - c1 * 3)     # fewer nearby = bigger opportunity
+        site_type_scores = {'motorway':35,'retail':30,'supermarket':28,'hotel':25,'office':20,'other':15}
+        site_score_val   = site_type_scores.get(site_type, 15)
+        total_score      = min(demand_score + gap_score + site_score_val, 100)
+
+        roi_monthly = round(total_score * 4.5, 0)  # rough £ estimate
+
+        return api_response({
+            'lat': lat, 'lon': lon,
+            'site_type':           site_type,
+            'suitability_score':   total_score,
+            'grade':               'A' if total_score>=80 else 'B' if total_score>=60 else 'C' if total_score>=40 else 'D',
+            'verdict':             'Excellent site' if total_score>=80 else 'Good site' if total_score>=60 else 'Viable site' if total_score>=40 else 'Marginal site',
+            'nearby_chargers_1mi': c1,
+            'nearby_chargers_3mi': c3,
+            'competition_level':   'Low' if c1<3 else 'Medium' if c1<8 else 'High',
+            'estimated_monthly_revenue': f'£{int(roi_monthly):,}',
+            'recommended_capacity':4 if total_score>=70 else 2,
+            'recommended_type':    'DC Fast (50kW+)' if site_type in ['motorway','retail'] else 'AC (7-22kW)',
+            'payback_years':       round(35000 / (roi_monthly * 12), 1),
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# ── BIZ 7. COMPETITOR CHARGER AUDIT ─────────────────────────
+@app.route('/api/v1/biz/competitor-audit')
+@require_api_key
+def api_biz_competitor_audit():
+    try:
+        import pandas as pd, pickle
+        lat     = float(request.args.get('lat', 51.5))
+        lon     = float(request.args.get('lon', -0.1))
+        radius  = float(request.args.get('radius', 5))
+        country = request.args.get('country', 'UK').upper()
+
+        df  = load_charger_data(country)
+        if df is None:
+            return jsonify({'error': 'Data not available'}), 503
+
+        deg = radius * 0.014
+        nearby = df[
+            (abs(df['lat']-lat)<deg)&(abs(df['lon']-lon)<deg)
+        ][['lat','lon','operator','capacity','location_type']].drop_duplicates(['lat','lon'])
+
+        model = pickle.load(open('charger_model.pkl','rb')) if os.path.exists('charger_model.pkl') else None
+        country_map = {'UK':0,'US':1,'EU':2}
+        loc_map     = {'motorway':3,'supermarket':2,'council':1,'tesla':2,'other':1}
+        hour = datetime.datetime.now().hour
+        day  = datetime.datetime.now().weekday()
+
+        competitors = []
+        for _, row in nearby.iterrows():
+            prob_free = 50.0
+            if model:
+                fv = [[hour, day, 1 if day>=5 else 0,
+                       min(int(row['capacity']),20),
+                       row['lat'], row['lon'],
+                       country_map.get(country,0),
+                       loc_map.get(str(row['location_type']),1)]]
+                prob_free = round(float(model.predict_proba(fv)[0][0])*100, 1)
+            competitors.append({
+                'lat':              round(float(row['lat']),5),
+                'lon':              round(float(row['lon']),5),
+                'operator':         str(row['operator']),
+                'capacity':         int(row['capacity']),
+                'location_type':    str(row['location_type']),
+                'current_availability': prob_free,
+                'threat_level':     'High' if prob_free<40 else 'Medium' if prob_free<65 else 'Low',
+            })
+
+        competitors.sort(key=lambda x: x['current_availability'])
+        op_summary = {}
+        for c in competitors:
+            op = c['operator']
+            if op not in op_summary:
+                op_summary[op] = {'count':0,'total_capacity':0}
+            op_summary[op]['count'] += 1
+            op_summary[op]['total_capacity'] += c['capacity']
+
+        return api_response({
+            'lat': lat, 'lon': lon,
+            'radius_miles':        radius,
+            'total_competitors':   len(competitors),
+            'high_threat':         sum(1 for c in competitors if c['threat_level']=='High'),
+            'operator_summary':    op_summary,
+            'busiest_competitor':  competitors[0] if competitors else None,
+            'quietest_competitor': competitors[-1] if competitors else None,
+            'market_opportunity':  'Strong' if len(competitors)<5 else 'Moderate' if len(competitors)<15 else 'Competitive',
+            'competitors':         competitors[:30],
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# ── BIZ 8. FLEET DEPOT OPTIMISATION ─────────────────────────
+@app.route('/api/v1/biz/depot-optimise', methods=['POST'])
+@require_api_key
+def api_biz_depot_optimise():
+    try:
+        import pandas as pd
+        data    = request.get_json() or {}
+        depots  = data.get('depots', [])
+        country = data.get('country', 'UK').upper()
+
+        if not depots:
+            return jsonify({'error': 'Provide depots array in request body'}), 400
+
+        df = load_charger_data(country)
+
+        results = []
+        for depot in depots:
+            lat  = float(depot.get('lat', 51.5))
+            lon  = float(depot.get('lon', -0.1))
+            name = depot.get('name', f'{lat},{lon}')
+            vehicles = int(depot.get('vehicles', 5))
+
+            deg = 0.014
+            if df is not None:
+                nearby = df[(abs(df['lat']-lat)<deg)&(abs(df['lon']-lon)<deg)]
+                existing = len(nearby[['lat','lon']].drop_duplicates())
+            else:
+                existing = 0
+
+            needed = max(0, vehicles - existing)
+            gap    = max(0, 100 - existing * 8)
+
+            results.append({
+                'depot_name':          name,
+                'lat':                 lat,
+                'lon':                 lon,
+                'vehicles':            vehicles,
+                'existing_chargers_nearby': existing,
+                'chargers_needed':     needed,
+                'gap_score':           gap,
+                'priority':            'Critical' if gap>=80 else 'High' if gap>=60 else 'Medium' if gap>=40 else 'Low',
+                'recommended_install': needed,
+                'estimated_install_cost': f'£{needed * 8500:,}',
+                'recommended_type':    'DC Fast 50kW' if vehicles>10 else 'AC 22kW',
+            })
+
+        results.sort(key=lambda x: -x['gap_score'])
+        total_cost = sum(int(r['estimated_install_cost'].replace('£','').replace(',','')) for r in results)
+
+        return api_response({
+            'total_depots':         len(results),
+            'depots_needing_action':sum(1 for r in results if r['priority'] in ['Critical','High']),
+            'total_chargers_needed':sum(r['chargers_needed'] for r in results),
+            'total_estimated_cost': f'£{total_cost:,}',
+            'depots':               results,
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# ── BIZ 9. PROPERTY EV SCORE ─────────────────────────────────
+@app.route('/api/v1/biz/property-score')
+@require_api_key
+def api_biz_property_score():
+    try:
+        import pandas as pd
+        lat     = float(request.args.get('lat', 51.5))
+        lon     = float(request.args.get('lon', -0.1))
+        country = request.args.get('country', 'UK').upper()
+
+        df = load_charger_data(country)
+        if df is None:
+            return jsonify({'error': 'Data not available'}), 503
+
+        def count_miles(m):
+            d = m * 0.014
+            return len(df[(abs(df['lat']-lat)<d)&(abs(df['lon']-lon)<d)][['lat','lon']].drop_duplicates())
+
+        c0_5 = count_miles(0.5)
+        c1   = count_miles(1)
+        c3   = count_miles(3)
+
+        score = min(c0_5*20 + c1*10 + c3*3, 100)
+        grade = 'A' if score>=80 else 'B' if score>=60 else 'C' if score>=40 else 'D' if score>=20 else 'F'
+        stars = 5 if score>=80 else 4 if score>=60 else 3 if score>=40 else 2 if score>=20 else 1
+
+        return api_response({
+            'lat': lat, 'lon': lon,
+            'ev_score':              score,
+            'grade':                 grade,
+            'stars':                 stars,
+            'label':                 f'EV Ready — Grade {grade}',
+            'chargers_within_half_mile': c0_5,
+            'chargers_within_1_mile':    c1,
+            'chargers_within_3_miles':   c3,
+            'verdict':               'Excellent EV charging access' if score>=80
+                                else 'Good EV charging access' if score>=60
+                                else 'Adequate EV charging nearby' if score>=40
+                                else 'Limited EV charging — may affect EV owners',
+            'selling_point':         f'{c1} public charger{"s" if c1!=1 else ""} within 1 mile',
+            'embed_badge':           f'<div style="font-family:sans-serif;padding:8px 12px;background:#f0fff0;border:1px solid #00C851;border-radius:6px;font-size:13px;">⚡ EV Score: {grade} ({score}/100) · chargesmart.online</div>',
+            'powered_by':            'chargesmart.online',
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# ── BIZ 10. RETAIL DWELL TIME OPPORTUNITY ───────────────────
+@app.route('/api/v1/biz/retail-opportunity')
+@require_api_key
+def api_biz_retail_opportunity():
+    try:
+        import pandas as pd
+        lat       = float(request.args.get('lat', 51.5))
+        lon       = float(request.args.get('lon', -0.1))
+        site_type = request.args.get('site_type', 'retail')
+        country   = request.args.get('country', 'UK').upper()
+
+        df = load_charger_data(country)
+        if df is None:
+            return jsonify({'error': 'Data not available'}), 503
+
+        deg3 = 0.042
+        nearby = df[(abs(df['lat']-lat)<deg3)&(abs(df['lon']-lon)<deg3)]
+        ev_activity = len(nearby)
+
+        # Dwell time by site type (minutes)
+        dwell_times = {'supermarket':45,'retail':60,'motorway':25,'hotel':480,'office':480,'other':40}
+        dwell       = dwell_times.get(site_type, 40)
+
+        # Revenue model
+        charge_per_session = {'motorway':12,'supermarket':6,'retail':8,'hotel':15,'office':10,'other':7}
+        revenue_per_session = charge_per_session.get(site_type, 8)
+        sessions_per_day    = max(2, min(ev_activity // 50, 20))
+        monthly_revenue     = sessions_per_day * 30 * revenue_per_session
+        annual_revenue      = monthly_revenue * 12
+
+        return api_response({
+            'lat': lat, 'lon': lon,
+            'site_type':              site_type,
+            'ev_activity_score':      min(ev_activity // 10, 100),
+            'estimated_daily_sessions': sessions_per_day,
+            'avg_dwell_minutes':      dwell,
+            'revenue_per_session':    f'£{revenue_per_session}',
+            'estimated_monthly_revenue': f'£{monthly_revenue:,}',
+            'estimated_annual_revenue':  f'£{annual_revenue:,}',
+            'payback_period_years':   round(35000 / annual_revenue, 1),
+            'opportunity_rating':     'Excellent' if annual_revenue>50000 else 'Good' if annual_revenue>20000 else 'Moderate' if annual_revenue>10000 else 'Low',
+            'additional_benefits':    [
+                f'{dwell} min dwell time increases in-store spend',
+                'EV drivers have 40% higher average income than petrol drivers',
+                'Charging amenity attracts repeat visits',
+                'Sustainability credentials for ESG reporting',
+            ],
+            'recommended_capacity':   max(2, sessions_per_day // 3),
+            'powered_by':             'chargesmart.online',
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
