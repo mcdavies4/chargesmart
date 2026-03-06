@@ -1119,6 +1119,93 @@ def fleet_report_pdf():
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+
+# ═══════════════════════════════════════════════════════════════
+# SIGNUP TRACKING
+# ═══════════════════════════════════════════════════════════════
+SIGNUPS_FILE = 'signups.json'
+
+def load_signups():
+    if os.path.exists(SIGNUPS_FILE):
+        with open(SIGNUPS_FILE) as f:
+            return json.load(f)
+    return []
+
+def save_signups(signups):
+    with open(SIGNUPS_FILE, 'w') as f:
+        json.dump(signups, f, indent=2)
+
+@app.route('/signup', methods=['POST'])
+def signup():
+    try:
+        data = request.get_json() or {}
+        name   = data.get('name', '').strip()
+        email  = data.get('email', '').strip().lower()
+        source = data.get('source', '').strip()
+
+        if not email or '@' not in email:
+            return jsonify({'error': 'Valid email required'}), 400
+        if not name:
+            return jsonify({'error': 'Name required'}), 400
+
+        signups = load_signups()
+
+        # Check duplicate
+        for s in signups:
+            if s.get('email') == email:
+                return jsonify({'success': True, 'message': 'You are already signed up!', 'duplicate': True})
+
+        signups.append({
+            'id':        len(signups) + 1,
+            'name':      name,
+            'email':     email,
+            'source':    source or 'Not specified',
+            'date':      datetime.datetime.now().strftime('%Y-%m-%d'),
+            'time':      datetime.datetime.now().strftime('%H:%M'),
+            'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        })
+        save_signups(signups)
+
+        return jsonify({
+            'success': True,
+            'message': f'Welcome aboard {name}! You are user #{len(signups)}.',
+            'user_number': len(signups)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/admin/signups')
+def admin_signups():
+    # Simple password check via query param
+    pw = request.args.get('pw', '')
+    if pw != os.environ.get('ADMIN_PW', 'chargesmart2026'):
+        return jsonify({'error': 'Unauthorised'}), 401
+    signups = load_signups()
+    # Analytics
+    from collections import Counter
+    sources = Counter(s.get('source','Unknown') for s in signups)
+    dates   = Counter(s.get('date','') for s in signups)
+    return jsonify({
+        'total_signups':  len(signups),
+        'signups':        signups,
+        'by_source':      dict(sources.most_common()),
+        'by_date':        dict(sorted(dates.items())),
+        'today':          sum(1 for s in signups if s.get('date') == datetime.datetime.now().strftime('%Y-%m-%d')),
+        'this_week':      sum(1 for s in signups if s.get('date', '') >= (datetime.datetime.now() - datetime.timedelta(days=7)).strftime('%Y-%m-%d')),
+    })
+
+@app.route('/admin')
+def admin_dashboard():
+    pw = request.args.get('pw', '')
+    if pw != os.environ.get('ADMIN_PW', 'chargesmart2026'):
+        return '''<!DOCTYPE html><html><body style="background:#0a0a0f;color:#fff;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px;">
+        <div style="font-size:32px;">⚡</div>
+        <form method="GET">
+            <input name="pw" type="password" placeholder="Admin password" style="padding:10px;background:#1a1a2a;border:1px solid #333;color:#fff;border-radius:6px;font-family:monospace;">
+            <button type="submit" style="padding:10px 20px;background:#00ff87;border:none;border-radius:6px;color:#000;font-family:monospace;font-weight:700;cursor:pointer;margin-left:8px;">ENTER</button>
+        </form></body></html>''', 401
+    return render_template('admin.html')
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
