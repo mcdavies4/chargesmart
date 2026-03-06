@@ -702,18 +702,19 @@ def require_api_key(f):
 
 def api_response(data, api_key=''):
     """Wrap response with metadata"""
-    auth = request.headers.get('Authorization', '')
-    key = auth.replace('Bearer ', '').strip() or request.args.get('key', '')
-    resp = {
-        'success': True,
-        'data': data,
-        'meta': {
-            'version': 'v1',
-            'calls_remaining_today': getattr(request, 'api_remaining', None),
-            'docs': 'https://chargesmart.online/developers'
+    try:
+        resp = {
+            'success': True,
+            'data': data,
+            'meta': {
+                'version': 'v1',
+                'calls_remaining_today': getattr(request, 'api_remaining', None),
+                'docs': 'https://chargesmart.online/developers'
+            }
         }
-    }
-    return jsonify(resp)
+        return jsonify(resp)
+    except Exception as e:
+        return jsonify({'success': True, 'data': data})
 
 # ── GET API KEY ──────────────────────────────────────────────
 @app.route('/api/v1/keys/register', methods=['POST'])
@@ -742,14 +743,17 @@ def register_api_key():
 # ── USAGE STATS ──────────────────────────────────────────────
 @app.route('/api/v1/keys/stats')
 def api_key_stats():
-    auth = request.headers.get('Authorization', '')
-    api_key = auth.replace('Bearer ', '').strip() or request.args.get('key', '')
-    if not api_key:
-        return jsonify({'error': 'API key required'}), 401
-    stats = get_key_stats(api_key)
-    if not stats:
-        return jsonify({'error': 'Invalid API key'}), 401
-    return jsonify({'success': True, 'data': stats})
+    try:
+        auth = request.headers.get('Authorization', '')
+        api_key = auth.replace('Bearer ', '').strip() or request.args.get('key', '')
+        if not api_key:
+            return jsonify({'error': 'API key required'}), 401
+        stats = get_key_stats(api_key)
+        if not stats:
+            return jsonify({'error': 'Invalid API key'}), 401
+        return jsonify({'success': True, 'data': stats})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
 
 # ── 1. PREDICT CHARGER AVAILABILITY ─────────────────────────
 @app.route('/api/v1/predict')
