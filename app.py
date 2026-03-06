@@ -857,8 +857,8 @@ def api_predict():
     try:
         lat  = float(request.args.get('lat', 51.5))
         lon  = float(request.args.get('lon', -0.1))
-        hour = int(request.args.get('hour', datetime.now().hour))
-        day  = int(request.args.get('day', datetime.now().weekday()))
+        hour = int(request.args.get('hour', datetime.datetime.now().hour))
+        day  = int(request.args.get('day', datetime.datetime.now().weekday()))
         cap  = int(request.args.get('capacity', 2))
         country = request.args.get('country', 'UK').upper()
 
@@ -1363,7 +1363,7 @@ def explorer_page():
     return resp
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port, debug=False)
 
 # ═══════════════════════════════════════════════════════════════
@@ -2447,51 +2447,14 @@ from auth import (create_magic_token, verify_magic_token, create_session,
                   update_user, send_magic_link)
 FROM_EMAIL       = os.environ.get('FROM_EMAIL', 'hello@chargesmart.online')
 
-def send_magic_link(email, token, base_url):
-    """Send magic link email via SendGrid."""
-    link = f"{base_url}auth/verify?token={token}"
-    if not SENDGRID_API_KEY:
-        # Dev mode — print to logs
-        print(f"[DEV] Magic link for {email}: {link}")
-        return True
-    try:
-        import urllib.request
-        payload = json.dumps({
-            "personalizations": [{"to": [{"email": email}]}],
-            "from": {"email": FROM_EMAIL, "name": "ChargeSmart"},
-            "subject": "Your ChargeSmart login link ⚡",
-            "content": [{
-                "type": "text/html",
-                "value": f"""
-                <div style="font-family:sans-serif;max-width:480px;margin:40px auto;padding:32px;background:#0d1117;border-radius:16px;border:1px solid #1e1e2e;">
-                    <div style="font-size:24px;font-weight:800;color:#00ff87;margin-bottom:8px;">⚡ ChargeSmart</div>
-                    <div style="font-size:18px;font-weight:700;color:#e0e0e0;margin-bottom:16px;">Your login link</div>
-                    <p style="color:#6b6b80;font-size:14px;margin-bottom:24px;">Click the button below to log in. This link expires in 15 minutes and can only be used once.</p>
-                    <a href="{link}" style="display:inline-block;background:#00ff87;color:#0a0a0f;font-weight:700;padding:14px 32px;border-radius:10px;text-decoration:none;font-size:15px;letter-spacing:1px;">LOG IN TO CHARGESMART →</a>
-                    <p style="color:#6b6b80;font-size:12px;margin-top:24px;">If you didn't request this, ignore this email. No password was set or changed.</p>
-                    <p style="color:#3a3a4a;font-size:11px;margin-top:8px;">chargesmart.online</p>
-                </div>"""
-            }]
-        }).encode()
-        req = urllib.request.Request(
-            'https://api.sendgrid.com/v3/mail/send',
-            data=payload,
-            headers={'Authorization': f'Bearer {SENDGRID_API_KEY}', 'Content-Type': 'application/json'},
-            method='POST'
-        )
-        urllib.request.urlopen(req)
-        return True
-    except Exception as e:
-        print(f"Email error: {e}")
-        return False
+# send_magic_link is imported from auth.py (uses Brevo)
 
 def get_current_user():
     """Get logged-in user from session cookie."""
     token = request.cookies.get('cs_session')
-    valid, email = verify_session(token)
-    if valid:
-        return get_user(email)
-    return None
+    if not token:
+        return None
+    return get_session_user(token)
 
 # ── REQUEST MAGIC LINK ───────────────────────────────────────
 @app.route('/auth/request', methods=['POST'])
@@ -2510,7 +2473,6 @@ def auth_request():
         return jsonify({
             'success': True,
             'message': f'Login link sent to {email}. Check your inbox — it expires in 15 minutes.',
-            'dev_token': token if not SENDGRID_API_KEY else None  # only show in dev
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 400
@@ -2523,9 +2485,11 @@ def auth_verify():
         valid, email, error = verify_magic_token(token)
         if not valid:
             return redirect(f'/login?error={error}')
-        # Update last login
+        # Get or create user, then update last login
+        user = get_or_create_user(email)
+        uid  = user.get('uid', email)
         update_user(email, {'last_login': datetime.datetime.now().isoformat()})
-        session_token = create_session(email)
+        session_token = create_session(uid)
         response = redirect('/')
         response.set_cookie(
             'cs_session', session_token,
@@ -2557,6 +2521,83 @@ def account_page():
     return render_template('account.html', user=user)
 
 # ── GET CURRENT USER (API) ───────────────────────────────────
+
+# ── ACCOUNT API ──────────────────────────────────────────────
+@app.route('/api/account')
+def api_account():
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'logged_in': False}), 401
+        # Attach API key usage stats
+        usage = {}
+        if user.get('api_key'):
+            try:
+                from api_system import get_key_stats
+                usage = get_key_stats(user['api_key']) or {}
+            except Exception:
+                usage = {}
+        from api_system import TIER_LIMITS, TIER_PRICES
+        tier = user.get('plan', 'free')
+        return jsonify({
+            'logged_in':    True,
+            'uid':          user.get('uid'),
+            'email':        user.get('email'),
+            'name':         user.get('name', ''),
+            'plan':         tier,
+            'plan_price':   TIER_PRICES.get(tier, 0),
+            'daily_limit':  TIER_LIMITS.get(tier, 100),
+            'api_key':      user.get('api_key'),
+            'favourites':   user.get('favourites', []),
+            'created':      user.get('created', ''),
+            'last_login':   user.get('last_login', ''),
+            'login_count':  user.get('login_count', 0),
+            'usage':        usage,
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/account/generate-key', methods=['POST'])
+def api_generate_key():
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Not logged in'}), 401
+        from api_system import create_api_key, load_keys, save_keys
+        result = create_api_key(user['email'], user.get('plan', 'free'))
+        update_user(user['email'], {'api_key': result['key']})
+        return jsonify({'success': True, 'api_key': result['key'], 'tier': result['tier']})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/account/favourites', methods=['POST'])
+def api_save_favourites():
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Not logged in'}), 401
+        data = request.get_json() or {}
+        favourites = data.get('favourites', [])
+        update_user(user['email'], {'favourites': favourites})
+        return jsonify({'success': True, 'count': len(favourites)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/account/update', methods=['POST'])
+def api_update_profile():
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Not logged in'}), 401
+        data = request.get_json() or {}
+        updates = {}
+        if 'name' in data:
+            updates['name'] = data['name'][:60]
+        update_user(user['email'], updates)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/auth/me')
 def auth_me():
     try:
@@ -2570,7 +2611,7 @@ def auth_me():
             usage = get_key_stats(user['api_key'])
         return jsonify({
             'logged_in':    True,
-            'id':           user['id'],
+            'uid':          user.get('uid', ''),
             'email':        user['email'],
             'name':         user.get('name', ''),
             'plan':         user.get('plan', 'free'),
@@ -2644,4 +2685,14 @@ def auth_update_profile():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
+
+PLAN_LABELS = {
+    'free':         'Free',
+    'pro':          'Pro',
+    'fleet':        'Fleet',
+    'api_developer':'Developer',
+    'api_business': 'Business',
+    'enterprise':   'Enterprise',
+}
 
