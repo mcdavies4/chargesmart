@@ -170,7 +170,7 @@
                     <li>SLA guarantee</li>
                     <li>Dedicated support</li>
                 </ul>
-                <a href="mailto:api@chargesmart.online" class="plan-btn plan-btn-paid">CONTACT US</a>
+                <a href="/cdn-cgi/l/email-protection#5435243d14373c3526333127393526207a3b3a383d3a31" class="plan-btn plan-btn-paid">CONTACT US</a>
             </div>
             <div class="plan">
                 <div class="plan-name">ENTERPRISE</div>
@@ -182,7 +182,7 @@
                     <li>White-label option</li>
                     <li>99.9% SLA</li>
                 </ul>
-                <a href="mailto:api@chargesmart.online" class="plan-btn plan-btn-paid">CONTACT US</a>
+                <a href="/cdn-cgi/l/email-protection#1776677e57747f76657072647a7665633978797b7e7972" class="plan-btn plan-btn-paid">CONTACT US</a>
             </div>
         </div>
     </div>
@@ -364,6 +364,247 @@ curl https://chargesmart.online/api/v1/predict?lat=51.5&lon=-0.1&key=YOUR_API_KE
                 </table>
             </div>
         </div>
+
+        <!-- 6. PEAK HOURS -->
+        <div class="endpoint">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep6')">
+                <span class="method">GET</span>
+                <span class="endpoint-path">/api/v1/peak-hours</span>
+                <span class="endpoint-desc">Busiest & quietest hours for a location</span>
+            </div>
+            <div class="endpoint-body" id="ep6">
+                <p style="color:var(--muted);font-size:14px;margin-bottom:12px;">Returns hourly demand breakdown for a location — ideal for scheduling apps and dashboards.</p>
+                <div class="params-title">PARAMETERS</div>
+                <table>
+                    <tr><th>Param</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                    <tr><td>lat</td><td>float</td><td>Yes</td><td>Latitude</td></tr>
+                    <tr><td>lon</td><td>float</td><td>Yes</td><td>Longitude</td></tr>
+                    <tr><td>country</td><td>string</td><td>No</td><td>UK, US or EU</td></tr>
+                    <tr><td>radius</td><td>float</td><td>No</td><td>Search radius in degrees (default 0.5)</td></tr>
+                </table>
+                <div class="params-title">EXAMPLE RESPONSE</div>
+                <pre>{ "best_time_to_charge": "02:00", "worst_time_to_charge": "17:00",
+  "peak_hours": [{"hour":17,"label":"17:00","demand_pct":8.2,"demand":"high"},...],
+  "hourly_breakdown": [...24 hours...] }</pre>
+            </div>
+        </div>
+
+        <!-- 7. OPERATORS -->
+        <div class="endpoint">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep7')">
+                <span class="method">GET</span>
+                <span class="endpoint-path">/api/v1/operators</span>
+                <span class="endpoint-desc">Full operator intelligence by country</span>
+            </div>
+            <div class="endpoint-body" id="ep7">
+                <p style="color:var(--muted);font-size:14px;margin-bottom:12px;">Returns every charging operator in your target country with charger counts, capacity and location breakdown.</p>
+                <div class="params-title">PARAMETERS</div>
+                <table>
+                    <tr><th>Param</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                    <tr><td>country</td><td>string</td><td>No</td><td>UK, US, EU or ALL (default UK)</td></tr>
+                </table>
+                <div class="params-title">EXAMPLE RESPONSE</div>
+                <pre>{ "total_operators": 24, "operators": [
+  { "operator": "Tesla", "total_chargers": 4821, "avg_capacity": 8.2,
+    "primary_location": "motorway", "countries": ["UK","US","EU"] }, ...
+]}</pre>
+            </div>
+        </div>
+
+        <!-- 8. COVERAGE SCORE -->
+        <div class="endpoint">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep8')">
+                <span class="method">GET</span>
+                <span class="endpoint-path">/api/v1/coverage</span>
+                <span class="endpoint-desc">0-100 coverage score for any location</span>
+            </div>
+            <div class="endpoint-body" id="ep8">
+                <p style="color:var(--muted);font-size:14px;margin-bottom:12px;">Returns a scored grade (A-F) for how well-served an area is for EV charging. Used by estate agents, councils and urban planners.</p>
+                <div class="params-title">PARAMETERS</div>
+                <table>
+                    <tr><th>Param</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                    <tr><td>lat</td><td>float</td><td>Yes</td><td>Latitude</td></tr>
+                    <tr><td>lon</td><td>float</td><td>Yes</td><td>Longitude</td></tr>
+                    <tr><td>radius</td><td>float</td><td>No</td><td>Radius in miles (default 10)</td></tr>
+                    <tr><td>country</td><td>string</td><td>No</td><td>UK, US or EU</td></tr>
+                </table>
+                <div class="params-title">EXAMPLE RESPONSE</div>
+                <pre>{ "coverage_score": 73, "grade": "B", "verdict": "Good",
+  "chargers_nearby": 42, "networks_present": 6,
+  "has_fast_charging": true, "recommendation": "Well served area" }</pre>
+            </div>
+        </div>
+
+        <!-- 9. NEAREST + PREDICT -->
+        <div class="endpoint">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep9')">
+                <span class="method">GET</span>
+                <span class="endpoint-path">/api/v1/nearest</span>
+                <span class="endpoint-desc">Nearest chargers with AI availability prediction</span>
+            </div>
+            <div class="endpoint-body" id="ep9">
+                <p style="color:var(--muted);font-size:14px;margin-bottom:12px;">Returns the closest chargers to a location, each with a live AI availability prediction. Perfect for navigation and EV apps.</p>
+                <div class="params-title">PARAMETERS</div>
+                <table>
+                    <tr><th>Param</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                    <tr><td>lat</td><td>float</td><td>Yes</td><td>Latitude</td></tr>
+                    <tr><td>lon</td><td>float</td><td>Yes</td><td>Longitude</td></tr>
+                    <tr><td>max_results</td><td>int</td><td>No</td><td>1-20 results (default 5)</td></tr>
+                    <tr><td>hour</td><td>int</td><td>No</td><td>Hour 0-23 (defaults to now)</td></tr>
+                    <tr><td>country</td><td>string</td><td>No</td><td>UK, US or EU</td></tr>
+                </table>
+                <div class="params-title">EXAMPLE RESPONSE</div>
+                <pre>{ "chargers": [
+  { "lat": 51.51, "lon": -0.12, "operator": "Pod Point",
+    "distance_miles": 0.3, "probability_free": 71.2,
+    "prediction": "free", "capacity": 4 }, ...
+]}</pre>
+            </div>
+        </div>
+
+        <!-- 10. HEATMAP -->
+        <div class="endpoint">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep10')">
+                <span class="method">GET</span>
+                <span class="endpoint-path">/api/v1/heatmap</span>
+                <span class="endpoint-desc">Grid density data for map visualisations</span>
+            </div>
+            <div class="endpoint-body" id="ep10">
+                <p style="color:var(--muted);font-size:14px;margin-bottom:12px;">Returns gridded charger density data ready to render as a heatmap. Works with Leaflet, Mapbox, Google Maps.</p>
+                <div class="params-title">PARAMETERS</div>
+                <table>
+                    <tr><th>Param</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                    <tr><td>region</td><td>string</td><td>No</td><td>uk, us or eu (default uk)</td></tr>
+                    <tr><td>resolution</td><td>string</td><td>No</td><td>low or high (default low)</td></tr>
+                </table>
+                <div class="params-title">EXAMPLE RESPONSE</div>
+                <pre>{ "region": "uk", "total_points": 842, "max_density": 1240,
+  "points": [{"lat":51.5,"lon":-0.1,"count":342,"intensity":0.27}, ...]}</pre>
+            </div>
+        </div>
+
+        <!-- 11. COUNTRY COMPARE -->
+        <div class="endpoint">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep11')">
+                <span class="method">GET</span>
+                <span class="endpoint-path">/api/v1/compare</span>
+                <span class="endpoint-desc">Side-by-side country comparison</span>
+            </div>
+            <div class="endpoint-body" id="ep11">
+                <p style="color:var(--muted);font-size:14px;margin-bottom:12px;">Compare EV infrastructure stats across UK, US and EU. Used by researchers, journalists and policy makers.</p>
+                <div class="params-title">PARAMETERS</div>
+                <table>
+                    <tr><th>Param</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                    <tr><td>countries</td><td>string</td><td>No</td><td>Comma-separated: UK,US,EU (default all three)</td></tr>
+                </table>
+                <div class="params-title">EXAMPLE RESPONSE</div>
+                <pre>{ "winner": "EU", "results": [
+  { "country": "EU", "rank": 1, "chargers_per_100k": 48.2,
+    "avg_capacity": 3.8, "top_operator": "Ionity" }, ...
+]}</pre>
+            </div>
+        </div>
+
+        <!-- 12. OPERATOR COMPARE -->
+        <div class="endpoint">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep12')">
+                <span class="method">GET</span>
+                <span class="endpoint-path">/api/v1/operators/compare</span>
+                <span class="endpoint-desc">Head-to-head operator comparison</span>
+            </div>
+            <div class="endpoint-body" id="ep12">
+                <p style="color:var(--muted);font-size:14px;margin-bottom:12px;">Compare any two or more charging networks head-to-head on coverage, capacity and location types.</p>
+                <div class="params-title">PARAMETERS</div>
+                <table>
+                    <tr><th>Param</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                    <tr><td>names</td><td>string</td><td>Yes</td><td>Comma-separated operator names e.g. Tesla,BP Pulse</td></tr>
+                </table>
+                <div class="params-title">EXAMPLE RESPONSE</div>
+                <pre>{ "winner": "Tesla", "results": [
+  { "operator": "Tesla", "total_chargers": 4821, "avg_capacity": 8.2,
+    "countries": ["UK","US","EU"], "peak_hour": 17 },
+  { "operator": "BP Pulse", "total_chargers": 2103, "avg_capacity": 2.1 }
+]}</pre>
+            </div>
+        </div>
+
+        <!-- 13. 24HR FORECAST -->
+        <div class="endpoint">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep13')">
+                <span class="method">GET</span>
+                <span class="endpoint-path">/api/v1/forecast</span>
+                <span class="endpoint-desc">24-hour availability forecast</span>
+            </div>
+            <div class="endpoint-body" id="ep13">
+                <p style="color:var(--muted);font-size:14px;margin-bottom:12px;">AI-powered hourly predictions for the next 24 hours. Nobody else offers this. Business tier and above.</p>
+                <div class="params-title">PARAMETERS</div>
+                <table>
+                    <tr><th>Param</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                    <tr><td>lat</td><td>float</td><td>Yes</td><td>Latitude</td></tr>
+                    <tr><td>lon</td><td>float</td><td>Yes</td><td>Longitude</td></tr>
+                    <tr><td>capacity</td><td>int</td><td>No</td><td>Number of bays (default 2)</td></tr>
+                    <tr><td>country</td><td>string</td><td>No</td><td>UK, US or EU</td></tr>
+                </table>
+                <div class="params-title">EXAMPLE RESPONSE</div>
+                <pre>{ "best_time": "02:00", "worst_time": "17:00",
+  "hourly_forecast": [
+    {"hour":0,"time":"00:00","probability_free":91.2,"prediction":"free","confidence":"high"},
+    {"hour":17,"time":"17:00","probability_free":18.4,"prediction":"busy","confidence":"high"},
+    ...24 hours total
+]}</pre>
+            </div>
+        </div>
+
+        <!-- 14. GAP SCORE -->
+        <div class="endpoint">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep14')">
+                <span class="method">GET</span>
+                <span class="endpoint-path">/api/v1/gap-score</span>
+                <span class="endpoint-desc">Infrastructure gap score for any location</span>
+            </div>
+            <div class="endpoint-body" id="ep14">
+                <p style="color:var(--muted);font-size:14px;margin-bottom:12px;">Scores how underserved a location is (0=well served, 100=charging desert). Used by councils, energy companies and network operators.</p>
+                <div class="params-title">PARAMETERS</div>
+                <table>
+                    <tr><th>Param</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                    <tr><td>lat</td><td>float</td><td>Yes</td><td>Latitude</td></tr>
+                    <tr><td>lon</td><td>float</td><td>Yes</td><td>Longitude</td></tr>
+                    <tr><td>country</td><td>string</td><td>No</td><td>UK, US or EU</td></tr>
+                </table>
+                <div class="params-title">EXAMPLE RESPONSE</div>
+                <pre>{ "gap_score": 84, "infrastructure_priority": "Critical",
+  "chargers_within_1_mile": 0, "chargers_within_5_miles": 2,
+  "recommendation": "Urgent infrastructure investment needed",
+  "useful_for": ["Local councils","Energy companies","EV network operators"] }</pre>
+            </div>
+        </div>
+
+        <!-- 15. BATCH PREDICT -->
+        <div class="endpoint">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep15')">
+                <span class="method">POST</span>
+                <span class="endpoint-path">/api/v1/predict/batch</span>
+                <span class="endpoint-desc">Predict up to 50 chargers in one call</span>
+            </div>
+            <div class="endpoint-body" id="ep15">
+                <p style="color:var(--muted);font-size:14px;margin-bottom:12px;">Send up to 50 charger locations in one request and get AI predictions for all of them simultaneously. Essential for fleet operators.</p>
+                <div class="params-title">REQUEST BODY</div>
+                <pre>POST /api/v1/predict/batch
+Content-Type: application/json
+
+{ "chargers": [
+    { "id": "depot-1", "lat": 51.5, "lon": -0.1, "capacity": 4, "country": "UK" },
+    { "id": "depot-2", "lat": 52.4, "lon": -1.9, "capacity": 2, "country": "UK" }
+]}</pre>
+                <div class="params-title">EXAMPLE RESPONSE</div>
+                <pre>{ "total_chargers": 2, "predicted_free": 1, "predicted_busy": 1,
+  "results": [
+    { "id": "depot-1", "probability_free": 73.2, "prediction": "free" },
+    { "id": "depot-2", "probability_free": 31.8, "prediction": "busy" }
+]}</pre>
+            </div>
+        </div>
+
     </div>
 
     <!-- QUICK START CODE -->
@@ -408,7 +649,7 @@ print(f"Best time: {data['best_time_today']}")</pre>
     </footer>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 function toggleEndpoint(id) {
     var el = document.getElementById(id);
     el.classList.toggle('open');
@@ -451,10 +692,4 @@ function tryEndpoint(name) {
     resultEl.textContent = 'Loading...';
     containerEl.style.display = 'block';
     fetch(url, {headers: {'Authorization': 'Bearer ' + key}})
-    .then(function(r){return r.json();})
-    .then(function(d){ resultEl.textContent = JSON.stringify(d, null, 2); })
-    .catch(function(e){ resultEl.textContent = 'Error: ' + e.message; });
-}
-</script>
-</body>
-</html>
+    .then(function(r){
