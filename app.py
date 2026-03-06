@@ -819,21 +819,43 @@ def register_api_key():
         email = data.get('email', '').strip().lower()
         if not email or '@' not in email:
             return jsonify({'error': 'Valid email required'}), 400
+
+        # Ensure api_keys.json exists
+        import json as _json
+        if not os.path.exists('api_keys.json'):
+            with open('api_keys.json', 'w') as f:
+                f.write('{}')
+
         result = create_api_key(email, tier='free')
         if result['existing']:
             msg = 'Your existing API key has been returned'
         else:
             msg = 'API key created successfully. Welcome to ChargeSmart API!'
+
+        # Also record in signups.json as backup
+        try:
+            signups = _json.load(open('signups.json')) if os.path.exists('signups.json') else []
+            if not any(s.get('email') == email for s in signups):
+                import datetime as _dt
+                signups.append({'email': email, 'source': 'api_key', 
+                                'date': _dt.datetime.now().isoformat()})
+                with open('signups.json', 'w') as f:
+                    _json.dump(signups, f, indent=2)
+        except Exception:
+            pass
+
         return jsonify({
-            'success': True,
-            'message': msg,
-            'api_key': result['key'],
-            'tier': result['tier'],
+            'success':     True,
+            'message':     msg,
+            'api_key':     result['key'],
+            'tier':        result['tier'],
             'daily_limit': TIER_LIMITS['free'],
-            'docs': 'https://chargesmart.online/developers'
+            'docs':        'https://chargesmart.online/developers'
         })
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        import traceback
+        print(f"register_api_key error: {traceback.format_exc()}")
+        return jsonify({'error': 'Could not generate key. Please try again.', 'detail': str(e)}), 500
 
 # ── USAGE STATS ──────────────────────────────────────────────
 @app.route('/api/v1/keys/stats')
