@@ -18,7 +18,7 @@ except ImportError:
 
 app = Flask(__name__, static_folder='static')
 
-stripe.api_key = os.environ.get('STRIPE_SECRET_KEY', '')
+if stripe: stripe.api_key = os.environ.get('STRIPE_SECRET_KEY', '')
 STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
 # Consumer plan price IDs
 PRO_PRICE_ID   = os.environ.get('STRIPE_PRO_PRICE_ID', '')
@@ -159,7 +159,7 @@ def get_live_chargers(lat, lon, radius_miles, country):
                         live_status = 'free'
                     elif status_id == 210:
                         live_status = 'busy'
-                dist = geodesic((lat, lon), (c_lat, c_lon)).miles
+                dist = geodesic((lat, lon), (c_lat, c_lon)).miles if geodesic else ((abs(lat-c_lat)**2 + abs(lon-c_lon)**2)**0.5 * 69)
                 chargers.append({
                     'id': poi.get('ID', 0),
                     'lat': float(c_lat),
@@ -190,14 +190,13 @@ else:
 try:
     nomi_uk = pgeocode.Nominatim('GB')
     nomi_us = pgeocode.Nominatim('US')
+    nomi_de = pgeocode.Nominatim('DE')
+    nomi_fr = pgeocode.Nominatim('FR')
+    nomi_nl = pgeocode.Nominatim('NL')
+    nomi_no = pgeocode.Nominatim('NO')
+    nomi_se = pgeocode.Nominatim('SE')
 except Exception:
-    nomi_uk = None
-    nomi_us = None
-nomi_de = pgeocode.Nominatim('DE')
-nomi_fr = pgeocode.Nominatim('FR')
-nomi_nl = pgeocode.Nominatim('NL')
-nomi_no = pgeocode.Nominatim('NO')
-nomi_se = pgeocode.Nominatim('SE')
+    nomi_uk = nomi_us = nomi_de = nomi_fr = nomi_nl = nomi_no = nomi_se = None
 
 def lookup_location(query):
     query = query.strip().upper()
@@ -592,7 +591,74 @@ def api_charger_deserts():
                 'grid_step': 0.2,
                 'name': 'Netherlands',
                 'country': 'EU'
-            }
+            },
+            # ── AFRICA ──────────────────────────────────────
+            'south_africa': {
+                'lat_min': -34.8, 'lat_max': -22.1,
+                'lon_min': 16.5,  'lon_max': 33.0,
+                'grid_step': 0.5,
+                'name': 'South Africa',
+                'country': 'ZA'
+            },
+            'kenya': {
+                'lat_min': -4.7, 'lat_max': 4.6,
+                'lon_min': 33.9, 'lon_max': 41.9,
+                'grid_step': 0.4,
+                'name': 'Kenya',
+                'country': 'KE'
+            },
+            'nigeria': {
+                'lat_min': 4.3, 'lat_max': 13.9,
+                'lon_min': 2.7, 'lon_max': 14.7,
+                'grid_step': 0.5,
+                'name': 'Nigeria',
+                'country': 'NG'
+            },
+            'egypt': {
+                'lat_min': 22.0, 'lat_max': 31.7,
+                'lon_min': 24.7, 'lon_max': 37.1,
+                'grid_step': 0.5,
+                'name': 'Egypt',
+                'country': 'EG'
+            },
+            'ethiopia': {
+                'lat_min': 3.4, 'lat_max': 15.0,
+                'lon_min': 33.0, 'lon_max': 48.0,
+                'grid_step': 0.5,
+                'name': 'Ethiopia',
+                'country': 'ET'
+            },
+            'morocco': {
+                'lat_min': 27.6, 'lat_max': 35.9,
+                'lon_min': -13.2, 'lon_max': -1.1,
+                'grid_step': 0.4,
+                'name': 'Morocco',
+                'country': 'MA'
+            },
+            # ── MIDDLE EAST ─────────────────────────────────
+            'uae': {
+                'lat_min': 22.6, 'lat_max': 26.1,
+                'lon_min': 51.6, 'lon_max': 56.4,
+                'grid_step': 0.2,
+                'name': 'UAE',
+                'country': 'AE'
+            },
+            # ── ASIA ────────────────────────────────────────
+            'india': {
+                'lat_min': 8.0, 'lat_max': 23.1,
+                'lon_min': 72.8, 'lon_max': 80.5,
+                'grid_step': 0.5,
+                'name': 'India',
+                'country': 'IN'
+            },
+            # ── LATIN AMERICA ───────────────────────────────
+            'brazil': {
+                'lat_min': -23.8, 'lat_max': -19.8,
+                'lon_min': -46.9, 'lon_max': -43.1,
+                'grid_step': 0.3,
+                'name': 'Brazil',
+                'country': 'BR'
+            },
         }
 
         if region not in regions:
