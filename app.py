@@ -5,9 +5,16 @@ import pickle
 import os
 import requests
 import json
-import stripe
-from geopy.distance import geodesic
-import pgeocode
+try:
+    import stripe
+except ImportError:
+    stripe = None
+try:
+    import pgeocode
+    from geopy.distance import geodesic
+except ImportError:
+    pgeocode = None
+    geodesic = None
 
 app = Flask(__name__, static_folder='static')
 
@@ -180,8 +187,12 @@ else:
     print("Training model...")
     model = train_model(chargers)
 
-nomi_uk = pgeocode.Nominatim('GB')
-nomi_us = pgeocode.Nominatim('US')
+try:
+    nomi_uk = pgeocode.Nominatim('GB')
+    nomi_us = pgeocode.Nominatim('US')
+except Exception:
+    nomi_uk = None
+    nomi_us = None
 nomi_de = pgeocode.Nominatim('DE')
 nomi_fr = pgeocode.Nominatim('FR')
 nomi_nl = pgeocode.Nominatim('NL')
