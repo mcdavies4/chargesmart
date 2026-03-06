@@ -131,49 +131,76 @@ def delete_session(session_id):
 
 # ── EMAIL ─────────────────────────────────────────────────────
 def send_magic_link(email, token, base_url):
-    """Send magic link via email — uses SendGrid if configured, logs to console otherwise"""
+    """Send magic link via Brevo (formerly Sendinblue) SMTP API"""
     link = f"{base_url}auth/verify?token={token}"
 
-    sendgrid_key = os.environ.get('SENDGRID_API_KEY', '')
-    from_email   = os.environ.get('FROM_EMAIL', 'hello@chargesmart.online')
+    brevo_key  = os.environ.get('BREVO_API_KEY', '')
+    from_email = os.environ.get('FROM_EMAIL', 'hello@chargesmart.online')
+    from_name  = os.environ.get('FROM_NAME', 'ChargeSmart')
 
-    if sendgrid_key:
+    html_body = f"""
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#0d1117;color:#e0e0e0;border-radius:16px;">
+        <div style="font-size:32px;margin-bottom:12px;">⚡</div>
+        <h2 style="margin-bottom:8px;color:#ffffff;font-size:22px;">Your login link</h2>
+        <p style="color:#9999aa;margin-bottom:28px;line-height:1.6;">
+            Click the button below to sign in to ChargeSmart.<br>
+            This link expires in <strong style="color:#ffffff;">15 minutes</strong> and can only be used once.
+        </p>
+        <a href="{link}"
+           style="display:inline-block;background:#00ff87;color:#0a0a0f;padding:14px 32px;
+                  border-radius:8px;text-decoration:none;font-weight:700;
+                  font-family:monospace;letter-spacing:1px;font-size:14px;">
+            SIGN IN TO CHARGESMART →
+        </a>
+        <p style="color:#666;font-size:12px;margin-top:28px;">
+            Or copy this link:<br>
+            <a href="{link}" style="color:#00ff87;word-break:break-all;">{link}</a>
+        </p>
+        <hr style="border:none;border-top:1px solid #1e1e2e;margin:24px 0;">
+        <p style="color:#555;font-size:11px;">
+            If you didn't request this email, you can safely ignore it.<br>
+            © ChargeSmart · chargesmart.online
+        </p>
+    </div>
+    """
+
+    text_body = f"Your ChargeSmart login link:\n{link}\n\nExpires in 15 minutes. Single use only."
+
+    if brevo_key:
         try:
             import urllib.request, json as _json
             payload = _json.dumps({
-                'personalizations': [{'to': [{'email': email}]}],
-                'from': {'email': from_email, 'name': 'ChargeSmart'},
-                'subject': '⚡ Your ChargeSmart login link',
-                'content': [{
-                    'type': 'text/html',
-                    'value': f'''
-                    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;">
-                        <div style="font-size:28px;margin-bottom:8px;">⚡</div>
-                        <h2 style="margin-bottom:8px;">Your login link</h2>
-                        <p style="color:#666;margin-bottom:24px;">Click the button below to sign in to ChargeSmart. This link expires in 15 minutes and can only be used once.</p>
-                        <a href="{link}" style="display:inline-block;background:#00ff87;color:#0a0a0f;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-family:monospace;letter-spacing:1px;">SIGN IN TO CHARGESMART →</a>
-                        <p style="color:#999;font-size:12px;margin-top:24px;">Or copy this link: {link}</p>
-                        <p style="color:#999;font-size:11px;">If you didn't request this, ignore this email.</p>
-                    </div>'''
-                }]
-            }).encode()
+                "sender":  {"name": from_name, "email": from_email},
+                "to":      [{"email": email}],
+                "subject": "⚡ Your ChargeSmart login link",
+                "htmlContent": html_body,
+                "textContent": text_body,
+            }).encode('utf-8')
+
             req = urllib.request.Request(
-                'https://api.sendgrid.com/v3/mail/send',
+                'https://api.brevo.com/v3/smtp/email',
                 data=payload,
-                headers={'Authorization': f'Bearer {sendgrid_key}',
-                         'Content-Type': 'application/json'},
+                headers={
+                    'api-key':      brevo_key,
+                    'Content-Type': 'application/json',
+                    'Accept':       'application/json',
+                },
                 method='POST'
             )
-            urllib.request.urlopen(req, timeout=10)
-            return True, 'Email sent'
+            resp = urllib.request.urlopen(req, timeout=10)
+            return True, 'Email sent via Brevo'
         except Exception as e:
-            print(f"SendGrid error: {e}")
-            print(f"MAGIC LINK (fallback): {link}")
+            print(f"Brevo error: {e}")
+            # Fallback — log link so app never fully breaks
+            print(f"\n{'='*60}")
+            print(f"MAGIC LINK FALLBACK for {email}:")
+            print(f"{link}")
+            print(f"{'='*60}\n")
             return False, str(e)
     else:
-        # No email service — log link so it works in development
+        # Dev mode — no key set, just log the link
         print(f"\n{'='*60}")
-        print(f"MAGIC LINK for {email}:")
+        print(f"DEV MODE — MAGIC LINK for {email}:")
         print(f"{link}")
         print(f"{'='*60}\n")
         return True, 'link_logged'
