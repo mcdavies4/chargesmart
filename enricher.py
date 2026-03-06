@@ -10,6 +10,28 @@ US_OPERATORS = ['tesla','supercharger','chargepoint','evgo','blink',
 EU_OPERATORS = ['ionity','allego','fastned','recharge','enbw','tesla',
                 'supercharger','charge4europe','newmotion','vattenfall']
 
+# Africa operators
+AFRICA_OPERATORS = ['gridcars','charge.africa','axgrid','ev-zone','powerx',
+                    'ampersand','spiro','roam','BasiGo','zero carbon charge',
+                    'african clean energy','kabisa','byd','nawiri',
+                    'national oil','kenol','total energies africa']
+
+# Middle East operators
+MIDDLE_EAST_OPERATORS = ['charge & go','eviq','adnoc','charge master',
+                         'tesla','pod point','dubai electricity']
+
+# Asia operators  
+ASIA_OPERATORS = ['tata power','ather','ola electric','charge+','evolt',
+                  'pea volta','ea anywhere','vinfast','evn','charge spot',
+                  'pertamina','star charge','byd']
+
+# Latin America operators
+LATAM_OPERATORS = ['eletroposto','zletric','voltbras','enel x','copec',
+                   'blink','tesla','terpel','charge here']
+
+ALL_EMERGING_OPERATORS = (AFRICA_OPERATORS + MIDDLE_EAST_OPERATORS + 
+                           ASIA_OPERATORS + LATAM_OPERATORS)
+
 UK_BANK_HOLIDAYS = {
     "2025-01-01","2025-04-18","2025-04-21","2025-05-05","2025-05-26",
     "2025-08-25","2025-12-25","2025-12-26",
