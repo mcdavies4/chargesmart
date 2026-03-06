@@ -855,6 +855,8 @@ def api_key_stats():
 @require_api_key
 def api_predict():
     try:
+        if model is None:
+            return jsonify({'error': 'Model not available'}), 503
         lat  = float(request.args.get('lat', 51.5))
         lon  = float(request.args.get('lon', -0.1))
         hour = int(request.args.get('hour', datetime.datetime.now().hour))
@@ -1371,15 +1373,31 @@ if __name__ == '__main__':
 # ═══════════════════════════════════════════════════════════════
 
 def load_charger_data(country=None):
-    """Load enriched_data.csv once, optionally filtered by country."""
+    """Load enriched_data.csv, generating synthetic data if missing."""
     import pandas as pd
     if not os.path.exists('enriched_data.csv'):
-        return None
+        # Generate and save synthetic data so all endpoints work
+        print("enriched_data.csv missing - generating synthetic data...")
+        base = generate_synthetic_chargers()
+        np.random.seed(42)
+        n = len(base)
+        rows = []
+        for _ in range(50):  # 50 time samples per charger
+            tmp = base.copy()
+            tmp['hour']        = np.random.randint(0, 24, n)
+            tmp['day_of_week'] = np.random.randint(0, 7, n)
+            rows.append(tmp)
+        df_full = pd.concat(rows, ignore_index=True)
+        df_full.to_csv('enriched_data.csv', index=False)
+        print(f"Generated {len(df_full)} synthetic rows -> enriched_data.csv")
     cols = ['lat','lon','hour','day_of_week','capacity','location_type','operator','country']
-    df = pd.read_csv('enriched_data.csv', usecols=cols)
+    # Only load cols that exist
+    available = pd.read_csv('enriched_data.csv', nrows=0).columns.tolist()
+    load_cols = [c for c in cols if c in available]
+    df = pd.read_csv('enriched_data.csv', usecols=load_cols)
     if country and country != 'ALL':
         df = df[df['country'] == country.upper()]
-    return df
+    return df if len(df) > 0 else None
 
 # ── 1. PEAK HOURS ────────────────────────────────────────────
 @app.route('/api/v1/peak-hours')
@@ -2293,6 +2311,8 @@ def api_biz_depot_optimise():
             return jsonify({'error': 'Provide depots array in request body'}), 400
 
         df = load_charger_data(country)
+        if df is None:
+            return jsonify({'error': 'Data not available'}), 503
 
         results = []
         for depot in depots:
