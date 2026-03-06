@@ -1,0 +1,90 @@
+[33mbaaabfe[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Add Procfile - point gunicorn to app.py
+[33mb1dcd22[m Remove Procfile - let Railway auto-detect
+[33mdefa533[m Fix PORT binding - use Railway  variable
+[33m89e3b3b[m Fix port binding for Railway
+[33m652b8c9[m Add Procfile, fix requirements
+[33mc1a70e6[m Improve Brevo error logging
+[33mc72983f[m Add files via upload
+[33m9bb9558[m Fix site crash, auth flow, account dashboard, founder account
+[33mf463a35[m API Explorer - 4 location input modes
+[33m395f6ab[m Fix auth flow - verify_magic_token returns tuple, create_user fix
+[33mc482b91[m Fix all startup crashes - make_response, TIER_LIMITS, auth_error template
+[33mdce9840[m Add Africa, Middle East, Asia, LatAm data collection
+[33m17c618b[m Fix 500 error - stripe/pgeocode/geodesic startup crashes
+[33m1311034[m Fix requirements for Python 3.13
+[33m2c32509[m Fix startup crash, add auth system, API explorer
+[33m7f27eaf[m API Explorer, fix desert crash, cache headers
+[33m1889477[m Add founder enterprise key
+[33m5bb8bc3[m Track api_keys.json, add founder enterprise key
+[33m2fd7714[m Fix API key form, cache headers, how it works section
+[33m81d9c9d[m Dynamic UI — animated scene, live charger nodes, EV cars
+[33m1fadf79[m Fix auth_system import crash
+[33mf49e479[m Fix auth_system import crash
+[33m61639b8[m Add files via upload
+[33ma72c2a1[m Fix ModuleNotFoundError — auth_system → auth
+[33mbb13461[m Switch email from SendGrid to Brevo
+[33mdf045ed[m Add magic link auth, account dashboard, favourites sync
+[33m1e1a6a1[m Update all data counts to 8.5M across the app
+[33m9771764[m Fix all audit issues — full endpoint protection and error handling
+[33m2db7eff[m Wire up tier enforcement and Stripe for API plans
+[33m82e07a7[m Fix developer pricing tiers — correct endpoints per plan
+[33m876828c[m Update developer pricing tiers to reflect 25 endpoints
+[33m85b7b0a[m Add government and business endpoints + solutions page
+[33m3a3c8f4[m Add 10 new API endpoints — now 15 total
+[33md625edc[m Add signup tracking, admin dashboard and community banner
+[33m9ebe93a[m Add leaderboard link to homepage nav and banner
+[33mad111b7[m Add range calculator, network leaderboard and fleet PDF report
+[33m842a0a7[m Add API docs link to homepage nav and banner
+[33m093c1ea[m Launch ChargeSmart Public API v1 + developer docs
+[33m1d3d127[m Update domain to chargesmart.online + add regional desert breakdown
+[33m25c33cc[m Add Charger Desert Map - UK, US and Europe
+[33mf37ddf1[m Fix cost calculator - single clean script block
+[33m87abf42[m Fix cost calculator - move functions to correct script block
+[33m718fd37[m Fix cost calculator - fully client-side, no API dependency
+[33med60b85[m Fix cost calculator tab not responding
+[33m39adba9[m Fix cost calculator tab not responding
+[33mc235c82[m Add files via upload
+[33m518ff35[m Add files via upload
+[33m290141d[m Add 14-day free trial badge to upgrade modal
+[33mbcad19a[m 14-day free trial on both Pro and Fleet plans
+[33m6f14306[m Add Carbon Savings Tracker
+[33m8151789[m Add Stripe payment routes to app.py
+[33mf53c15e[m Update postcode placeholder for UK, US and Europe
+[33mc3ffa38[m Improve model accuracy to 67.65% with better occupancy simulation
+[33m84290ae[m Merge branch 'main' of https://github.com/mcdavies4/chargesmart
+[33mef8e37f[m Add interactive demo walkthrough
+[33mfc0137c[m Remove payment routes registration
+[33m0a3ff71[m Remove payments import
+[33m8a678ab[m Update app.py
+[33m5264133[m Fix requirements.txt
+[33mc57886c[m Add Stripe paywall - Free, Pro and Fleet tiers
+[33m288fd80[m Add Route + Charge Planner for all users
+[33m82c44a4[m Update SEO for Europe expansion
+[33mabefca4[m Add Europe - Norway, Netherlands, Germany, Sweden, France
+[33m282840a[m Clean app.py - fix merge conflict
+[33m7c8d960[m Show address when operator name missing
+[33m4f3cc1b[m Add OCM live data integration
+[33md12e9f7[m Clean up print statements and comments in app.py
+[33m870517b[m Enhance live charger data retrieval and fallback
+[33m7a13aae[m Fix app.py with OCM integration
+[33me00b906[m Fix syntax errors and improve code formatting
+[33mb1112be[m Fix string quotes and formatting in app.py
+[33m9b56297[m Fix encoding in app.py
+[33m1c0024e[m Update app.py
+[33m7b8890d[m Update homepage content for UK and US
+[33m88d703f[m Add PWA - installable app with offline support
+[33m647cf0a[m Add US expansion - all regions, ZIP code support, auto country detection
+[33mcf31981[m Add Google Analytics
+[33m600bd3e[m Add SEO - meta tags, structured data, sitemap, landing page
+[33m3a065df[m Fix schedule planner speed - parallel fetching
+[33mc1789de[m Add charging schedule planner
+[33mff6119c[m Fix favicon
+[33mc322a6a[m Add fleet mode
+[33m92a9d68[m Add favicon
+[33ma7357d4[m Add directions button
+[33mf74d590[m Add correct Procfile
+[33m9ffc678[m Fix Procfile port binding
+[33mf406392[m Auto train model on startup
+[33mc6d638b[m Remove large csv file
+[33mb0f8718[m Remove large model file
+[33m75040ce[m Initial ChargeSmart build
