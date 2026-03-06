@@ -2529,3 +2529,4 @@ def auth_update_profile():
         return jsonify({'error': str(e)}), 400
 
 
+
