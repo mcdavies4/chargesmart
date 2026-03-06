@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Account — ChargeSmart</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root{--green:#00ff87;--dark:#0a0a0f;--card:#0d1117;--border:#1e1e2e;--text:#e0e0e0;--muted:#6b6b80;--red:#ff5050;--gold:#FFD700;--blue:#4488ff;}
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{background:var(--dark);color:var(--text);font-family:'Syne',sans-serif;line-height:1.6;min-height:100vh;}
+        .grid-bg{position:fixed;top:0;left:0;width:100%;height:100%;background-image:linear-gradient(rgba(0,255,135,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+        .container{max-width:900px;margin:0 auto;padding:0 24px;position:relative;z-index:1;}
+        nav{padding:20px 0;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);margin-bottom:40px;}
+        .logo{font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:var(--green);text-decoration:none;}
+        .nav-links a{color:var(--muted);text-decoration:none;font-family:'Space Mono',monospace;font-size:11px;margin-left:20px;letter-spacing:1px;}
+        .account-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px;flex-wrap:wrap;gap:16px;}
+        .account-greeting h1{font-size:32px;font-weight:800;margin-bottom:4px;}
+        .account-greeting h1 span{color:var(--green);}
+        .account-greeting p{font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);}
+        .logout-btn{background:transparent;border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--muted);font-family:'Space Mono',monospace;font-size:11px;cursor:pointer;letter-spacing:1px;}
+        .logout-btn:hover{border-color:var(--red);color:var(--red);}
+        .plan-badge{display:inline-block;padding:4px 12px;border-radius:20px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:2px;margin-bottom:6px;}
+        .plan-free{background:rgba(107,107,128,0.15);border:1px solid var(--border);color:var(--muted);}
+        .plan-pro{background:rgba(0,255,135,0.1);border:1px solid rgba(0,255,135,0.3);color:var(--green);}
+        .plan-fleet{background:rgba(255,215,0,0.1);border:1px solid rgba(255,215,0,0.3);color:var(--gold);}
+        .plan-api{background:rgba(68,136,255,0.1);border:1px solid rgba(68,136,255,0.3);color:var(--blue);}
+        .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;margin-bottom:20px;}
+        .stat-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;}
+        .stat-val{font-size:24px;font-weight:800;color:var(--green);}
+        .stat-lbl{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;margin-top:2px;}
+        .section{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;margin-bottom:20px;}
+        .section-label{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--muted);margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border);}
+        .upgrade-card{background:linear-gradient(135deg,rgba(0,255,135,0.07),rgba(0,255,135,0.02));border:1px solid rgba(0,255,135,0.25);border-radius:12px;padding:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;}
+        .upgrade-info h3{font-size:16px;font-weight:700;margin-bottom:4px;}
+        .upgrade-info p{font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);}
+        .upgrade-btn{background:var(--green);border:none;border-radius:8px;padding:10px 24px;color:#0a0a0f;font-family:'Space Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px;text-decoration:none;}
+        .key-box{background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-family:'Space Mono',monospace;font-size:13px;color:var(--green);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+        .key-text{word-break:break-all;}
+        .key-actions{display:flex;gap:8px;flex-shrink:0;}
+        .key-btn{background:transparent;border:1px solid var(--border);border-radius:6px;padding:6px 12px;color:var(--muted);font-family:'Space Mono',monospace;font-size:10px;cursor:pointer;letter-spacing:1px;text-decoration:none;display:inline-block;}
+        .key-btn:hover{border-color:var(--green);color:var(--green);}
+        .usage-bar-wrap{margin:12px 0;}
+        .usage-bar-label{display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:6px;}
+        .usage-bar-bg{background:var(--border);border-radius:4px;height:6px;}
+        .usage-bar-fill{background:var(--green);border-radius:4px;height:6px;transition:width 0.6s ease;}
+        .fav-list{display:flex;flex-direction:column;gap:10px;}
+        .fav-item{background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;}
+        .fav-name{font-size:14px;font-weight:600;}
+        .fav-meta{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);}
+        .fav-remove{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:16px;}
+        .fav-remove:hover{color:var(--red);}
+        .empty-state{font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);text-align:center;padding:24px;border:1px dashed var(--border);border-radius:10px;}
+        .profile-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+        .profile-input{background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-family:'Syne',sans-serif;font-size:14px;flex:1;min-width:200px;}
+        .profile-input:focus{outline:none;border-color:var(--green);}
+        .save-btn{background:var(--green);border:none;border-radius:8px;padding:10px 20px;color:#0a0a0f;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px;}
+        .toast{position:fixed;bottom:24px;right:24px;background:var(--card);border:1px solid var(--green);border-radius:10px;padding:12px 20px;font-family:'Space Mono',monospace;font-size:12px;color:var(--green);z-index:999;opacity:0;transition:opacity 0.3s;pointer-events:none;}
+        .toast.show{opacity:1;}
+        footer{border-top:1px solid var(--border);padding:28px 0;text-align:center;font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-top:40px;}
+    </style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="container">
+    <nav>
+        <a href="/" class="logo">⚡ ChargeSmart</a>
+        <div class="nav-links">
+            <a href="/developers">API</a>
+            <a href="/leaderboard">LEADERBOARD</a>
+            <a href="/solutions">SOLUTIONS</a>
+        </div>
+    </nav>
+
+    <div class="account-header">
+        <div class="account-greeting">
+            <div id="plan-badge" class="plan-badge plan-free">FREE PLAN</div>
+            <h1>Hey, <span id="user-name">there</span> 👋</h1>
+            <p id="user-email">// loading...</p>
+        </div>
+        <button class="logout-btn" onclick="logout()">LOG OUT</button>
+    </div>
+
+    <div class="stats-row">
+        <div class="stat-box"><div class="stat-val" id="stat-calls">—</div><div class="stat-lbl">API CALLS TODAY</div></div>
+        <div class="stat-box"><div class="stat-val" id="stat-remaining">—</div><div class="stat-lbl">CALLS REMAINING</div></div>
+        <div class="stat-box"><div class="stat-val" id="stat-favs">—</div><div class="stat-lbl">SAVED CHARGERS</div></div>
+        <div class="stat-box"><div class="stat-val" id="stat-member">—</div><div class="stat-lbl">MEMBER SINCE</div></div>
+    </div>
+
+    <div class="section">
+        <div class="section-label">// SUBSCRIPTION</div>
+        <div id="upgrade-card" class="upgrade-card" style="display:none;">
+            <div class="upgrade-info">
+                <h3>Unlock all 25 API endpoints</h3>
+                <p>Upgrade to Developer for £49/month — forecasts, coverage scores, nearest chargers and more.</p>
+            </div>
+            <a href="/developers#pricing" class="upgrade-btn">UPGRADE →</a>
+        </div>
+        <div id="plan-detail" style="font-family:'Space Mono',monospace;font-size:13px;color:var(--muted);"></div>
+    </div>
+
+    <div class="section">
+        <div class="section-label">// API KEY</div>
+        <div id="no-key-state">
+            <div class="empty-state">No API key yet.<br><br>
+                <button onclick="generateApiKey()" style="background:var(--green);border:none;border-radius:8px;padding:10px 20px;color:#0a0a0f;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;cursor:pointer;margin-top:8px;">GENERATE FREE KEY</button>
+            </div>
+        </div>
+        <div id="has-key-state" style="display:none;">
+            <div class="key-box">
+                <span class="key-text" id="api-key-display">—</span>
+                <div class="key-actions">
+                    <button class="key-btn" onclick="copyKey()">COPY</button>
+                    <a href="/developers" class="key-btn">DOCS</a>
+                </div>
+            </div>
+            <div class="usage-bar-wrap">
+                <div class="usage-bar-label">
+                    <span>Daily usage</span>
+                    <span id="usage-label">0 / 100 calls</span>
+                </div>
+                <div class="usage-bar-bg"><div class="usage-bar-fill" id="usage-bar" style="width:0%"></div></div>
+            </div>
+            <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);" id="key-tier-info"></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-label">// SAVED CHARGERS</div>
+        <div class="fav-list" id="fav-list">
+            <div class="empty-state">No saved chargers yet.<br>Heart a charger in the app to save it here.</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-label">// PROFILE</div>
+        <div class="profile-row">
+            <input class="profile-input" id="profile-name" type="text" placeholder="Your name">
+            <button class="save-btn" onclick="saveProfile()">SAVE</button>
+        </div>
+        <p style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-top:12px;">Email cannot be changed — it is your login identity.</p>
+    </div>
+
+    <footer>© 2026 ChargeSmart · <a href="/" style="color:var(--muted);">chargesmart.online</a> · 8.5M data points</footer>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+var userData = null;
+
+async function loadUser() {
+    try {
+        const r = await fetch('/auth/me');
+        const d = await r.json();
+        if (!d.logged_in) { window.location.href = '/?login=1'; return; }
+        userData = d;
+        renderAccount(d);
+    } catch(e) { console.error(e); }
+}
+
+function renderAccount(d) {
+    document.getElementById('user-name').textContent  = d.name || d.email.split('@')[0];
+    document.getElementById('user-email').textContent = '// ' + d.email;
+
+    var badge = document.getElementById('plan-badge');
+    var plan  = d.plan || 'free';
+    badge.textContent  = (d.plan_label || 'Free').toUpperCase();
+    badge.className    = 'plan-badge ' + (plan==='free'?'plan-free':plan==='pro'?'plan-pro':plan==='fleet'?'plan-fleet':'plan-api');
+
+    var calls     = d.api_usage ? d.api_usage.calls_today   : 0;
+    var limit     = d.api_usage ? d.api_usage.daily_limit   : 100;
+    document.getElementById('stat-calls').textContent     = calls.toLocaleString();
+    document.getElementById('stat-remaining').textContent = Math.max(0, limit - calls).toLocaleString();
+    document.getElementById('stat-favs').textContent      = (d.favourites||[]).length;
+    document.getElementById('stat-member').textContent    = d.created
+        ? new Date(d.created).toLocaleDateString('en-GB',{month:'short',year:'numeric'}) : '—';
+
+    if (plan === 'free') {
+        document.getElementById('upgrade-card').style.display = 'flex';
+        document.getElementById('plan-detail').textContent    = '';
+    } else {
+        document.getElementById('upgrade-card').style.display = 'none';
+        document.getElementById('plan-detail').textContent    = '✓ Active: ' + d.plan_label;
+    }
+
+    if (d.api_key) {
+        document.getElementById('no-key-state').style.display  = 'none';
+        document.getElementById('has-key-state').style.display = 'block';
+        document.getElementById('api-key-display').textContent = d.api_key;
+        var pct = limit > 0 ? Math.min((calls/limit)*100, 100) : 0;
+        document.getElementById('usage-bar').style.width       = pct + '%';
+        document.getElementById('usage-label').textContent     = calls + ' / ' + limit.toLocaleString() + ' calls today';
+        document.getElementById('key-tier-info').textContent   = 'Tier: ' + (d.plan_label||'Free') + ' · Resets midnight UTC';
+    }
+
+    renderFavourites(d.favourites || []);
+    if (d.name) document.getElementById('profile-name').value = d.name;
+}
+
+function renderFavourites(favs) {
+    var list = document.getElementById('fav-list');
+    if (!favs || !favs.length) {
+        list.innerHTML = '<div class="empty-state">No saved chargers yet.<br>Heart a charger in the app to save it here.</div>';
+        return;
+    }
+    list.innerHTML = favs.map(function(f,i) { return '<div class="fav-item"><div><div class="fav-name">⚡ '+(f.operator||'Charger')+'</div><div class="fav-meta">📍 '+(f.lat?f.lat.toFixed(4):'?')+', '+(f.lon?f.lon.toFixed(4):'?')+'</div></div><div style="display:flex;gap:8px;align-items:center;"><a href="/?lat='+f.lat+'&lon='+f.lon+'" class="key-btn">VIEW</a><button class="fav-remove" onclick="removeFavourite('+i+')">✕</button></div></div>'; }).join('');
+}
+
+async function generateApiKey() {
+    var r = await fetch('/auth/generate-api-key',{method:'POST'});
+    var d = await r.json();
+    if (d.success) { userData.api_key = d.api_key; renderAccount(userData); showToast('✅ API key generated!'); }
+}
+
+function copyKey() {
+    navigator.clipboard.writeText(document.getElementById('api-key-display').textContent)
+        .then(function(){ showToast('✅ Copied!'); });
+}
+
+async function removeFavourite(i) {
+    userData.favourites.splice(i,1);
+    document.getElementById('stat-favs').textContent = userData.favourites.length;
+    renderFavourites(userData.favourites);
+    await fetch('/auth/favourites',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({favourites:userData.favourites})});
+    showToast('Removed');
+}
+
+async function saveProfile() {
+    var name = document.getElementById('profile-name').value.trim();
+    if (!name) return;
+    var r = await fetch('/auth/update-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name})});
+    var d = await r.json();
+    if (d.success) { document.getElementById('user-name').textContent = name; showToast('✅ Saved'); }
+}
+
+async function logout() {
+    await fetch('/auth/logout',{method:'POST'});
+    window.location.href = '/';
+}
+
+function showToast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(function(){ t.classList.remove('show'); }, 2500);
+}
+
+loadUser();
+</script>
+</body>
+</html>

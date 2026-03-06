@@ -2746,6 +2746,59 @@ function addChargerActions(chargerId, operator, lat, lon) {
         if (rEl && d.total > 0) rEl.textContent = '★ ' + d.avg_rating + ' (' + d.total + ')';
     });
 }
+
+// ── AUTH STATE ────────────────────────────────────────────────
+var currentUser = null;
+
+function checkAuthState() {
+    fetch('/api/account')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+        if (d.success && d.user) {
+            currentUser = d.user;
+            var loginBtn   = document.getElementById('nav-login-btn');
+            var accountBtn = document.getElementById('nav-account-btn');
+            if (loginBtn)   loginBtn.style.display = 'none';
+            if (accountBtn) {
+                accountBtn.style.display  = 'inline-block';
+                accountBtn.textContent    = '👤 ' + (d.user.name || 'Account').split(' ')[0].toUpperCase();
+                accountBtn.style.color    = 'var(--green)';
+                accountBtn.style.borderColor = 'rgba(0,255,135,0.4)';
+            }
+            if (d.user.favourites && d.user.favourites.length > 0) {
+                d.user.favourites.forEach(function(f) {
+                    if (f.id) favourites[String(f.id)] = f;
+                });
+            }
+        } else {
+            currentUser = null;
+            var accountBtn = document.getElementById('nav-account-btn');
+            if (accountBtn) accountBtn.style.display = 'none';
+        }
+    })
+    .catch(function(){
+        var accountBtn = document.getElementById('nav-account-btn');
+        if (accountBtn) accountBtn.style.display = 'none';
+    });
+}
+
+var _origToggleFav = typeof toggleFavourite !== 'undefined' ? toggleFavourite : null;
+function toggleFavouriteWithSync(id, operator, lat, lon) {
+    if (_origToggleFav) _origToggleFav(id, operator, lat, lon);
+    if (currentUser) {
+        var favArray = Object.values(favourites || {});
+        fetch('/api/account/favourites', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({favourites: favArray})
+        }).catch(function(){});
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    checkAuthState();
+});
+
 </script>
 
 
@@ -2777,6 +2830,107 @@ function addChargerActions(chargerId, operator, lat, lon) {
             <div style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);margin-top:14px;text-align:center;">No spam ever · Unsubscribe anytime</div>
         </div>
     </div>
+
+
+    <!-- ── LOGIN MODAL ───────────────────────────────── -->
+    <div id="loginModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;display:none;align-items:center;justify-content:center;">
+        <div style="background:#0d1117;border:1px solid #1e1e2e;border-radius:20px;padding:40px;max-width:420px;width:90%;position:relative;">
+            <button onclick="closeLoginModal()" style="position:absolute;top:16px;right:16px;background:transparent;border:none;color:#6b6b80;font-size:20px;cursor:pointer;">✕</button>
+            <div style="font-size:28px;margin-bottom:8px;">⚡</div>
+            <div style="font-size:22px;font-weight:800;margin-bottom:6px;">Sign in to ChargeSmart</div>
+            <div style="font-family:'Space Mono',monospace;font-size:12px;color:#6b6b80;margin-bottom:28px;">// No password needed — we'll email you a login link</div>
+
+            <div id="login-form-state">
+                <input id="login-email" type="email" placeholder="Your email address"
+                    style="width:100%;background:rgba(0,0,0,0.4);border:1px solid #1e1e2e;border-radius:10px;padding:14px;color:#e0e0e0;font-family:'Syne',sans-serif;font-size:14px;margin-bottom:12px;">
+                <input id="login-name" type="text" placeholder="Your name (optional)"
+                    style="width:100%;background:rgba(0,0,0,0.4);border:1px solid #1e1e2e;border-radius:10px;padding:14px;color:#e0e0e0;font-family:'Syne',sans-serif;font-size:14px;margin-bottom:20px;">
+                <button onclick="requestMagicLink()" id="login-btn"
+                    style="width:100%;background:#00ff87;border:none;border-radius:10px;padding:15px;color:#0a0a0f;font-family:'Space Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:1px;">
+                    SEND LOGIN LINK →
+                </button>
+                <div style="font-family:'Space Mono',monospace;font-size:10px;color:#6b6b80;text-align:center;margin-top:12px;">A magic link will arrive in your inbox in seconds</div>
+            </div>
+
+            <div id="login-sent-state" style="display:none;text-align:center;">
+                <div style="font-size:40px;margin-bottom:12px;">📧</div>
+                <div style="font-size:18px;font-weight:800;margin-bottom:8px;">Check your inbox</div>
+                <div style="font-family:'Space Mono',monospace;font-size:12px;color:#6b6b80;">Login link sent to <span id="sent-email" style="color:#00ff87;"></span><br><br>Click the link to sign in. Expires in 15 minutes.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ── AUTH HELPERS ─────────────────────────────────────────
+    function openLoginModal() {
+        document.getElementById('loginModal').style.display = 'flex';
+        document.getElementById('login-form-state').style.display = 'block';
+        document.getElementById('login-sent-state').style.display = 'none';
+        setTimeout(function(){ document.getElementById('login-email').focus(); }, 100);
+    }
+    function closeLoginModal() {
+        document.getElementById('loginModal').style.display = 'none';
+    }
+
+    async function requestMagicLink() {
+        var email = document.getElementById('login-email').value.trim();
+        var name  = document.getElementById('login-name').value.trim();
+        if (!email || !email.includes('@')) {
+            alert('Please enter a valid email address');
+            return;
+        }
+        var btn = document.getElementById('login-btn');
+        btn.textContent = 'SENDING...';
+        btn.disabled    = true;
+        try {
+            var r = await fetch('/auth/request', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({email: email, name: name, source: 'app'})
+            });
+            var d = await r.json();
+            if (d.success) {
+                document.getElementById('login-form-state').style.display = 'none';
+                document.getElementById('login-sent-state').style.display = 'block';
+                document.getElementById('sent-email').textContent = email;
+                // Dev mode: auto-follow link
+                if (d.dev_token) {
+                    console.log('[DEV] Token:', d.dev_token);
+                }
+            } else {
+                alert(d.error || 'Something went wrong');
+                btn.textContent = 'SEND LOGIN LINK →';
+                btn.disabled = false;
+            }
+        } catch(e) {
+            alert('Error sending link. Please try again.');
+            btn.textContent = 'SEND LOGIN LINK →';
+            btn.disabled = false;
+        }
+    }
+
+    // Check if user is logged in and update nav
+    async function checkAuthState() {
+        try {
+            var r = await fetch('/auth/me');
+            var d = await r.json();
+            var navBtns = document.getElementById('nav-auth-btns');
+            if (!navBtns) return;
+            if (d.logged_in) {
+                navBtns.innerHTML = '<a href="/account" style="font-family:Space Mono,monospace;font-size:10px;background:rgba(0,255,135,0.1);border:1px solid rgba(0,255,135,0.3);border-radius:20px;padding:5px 14px;color:#00ff87;text-decoration:none;letter-spacing:1px;">⚡ MY ACCOUNT</a>';
+            } else {
+                navBtns.innerHTML = '<button onclick="openLoginModal()" style="font-family:Space Mono,monospace;font-size:10px;background:#00ff87;border:none;border-radius:20px;padding:6px 14px;color:#0a0a0f;font-weight:700;cursor:pointer;letter-spacing:1px;">SIGN IN</button>';
+            }
+        } catch(e) {}
+    }
+
+    // Open login if redirected here
+    if (window.location.search.includes('login=1')) {
+        window.addEventListener('DOMContentLoaded', function(){ openLoginModal(); });
+    }
+
+    window.addEventListener('DOMContentLoaded', checkAuthState);
+    </script>
 
 </body>
 </html>
