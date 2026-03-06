@@ -2325,15 +2325,9 @@ def api_biz_retail_opportunity():
 # AUTHENTICATION — MAGIC LINK SYSTEM
 # ═══════════════════════════════════════════════════════════════
 
-from auth_system import (
-    create_user, get_user, update_user,
-    create_magic_token, verify_magic_token,
-    create_session, verify_session, delete_session,
-    sync_favourites, get_favourites,
-    upgrade_plan, PLAN_LABELS, is_paid
-)
-
-SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY', '')
+from auth import (create_magic_token, verify_magic_token, create_session,
+                  get_session_user, delete_session, get_or_create_user,
+                  update_user, send_magic_link)
 FROM_EMAIL       = os.environ.get('FROM_EMAIL', 'hello@chargesmart.online')
 
 def send_magic_link(email, token, base_url):
