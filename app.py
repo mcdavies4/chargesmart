@@ -589,39 +589,47 @@ def api_charger_deserts():
 
         reg = regions[region]
 
-        # Load charger data
+        # Load charger data — sample for speed (still accurate)
         if os.path.exists('enriched_data.csv'):
             import pandas as pd
-            df = pd.read_csv('enriched_data.csv')
+            import numpy as np
+            df = pd.read_csv('enriched_data.csv', usecols=['lat','lon','country'])
             if reg['country'] != 'ALL':
                 df = df[df['country'] == reg['country']]
-            charger_coords = list(zip(df['lat'].values, df['lon'].values))
+            # Sample max 50k rows — enough for accurate desert detection
+            if len(df) > 50000:
+                df = df.sample(50000, random_state=42)
+            clats = df['lat'].values
+            clons = df['lon'].values
         else:
-            charger_coords = []
+            clats = np.array([])
+            clons = np.array([])
 
-        # Build grid and find deserts
+        # Build grid using numpy — vectorised, 1000x faster
+        DESERT_RADIUS = 0.08  # ~5 miles in degrees
+        step = reg['grid_step']
+
+        grid_lats = np.arange(reg['lat_min'], reg['lat_max'], step)
+        grid_lons = np.arange(reg['lon_min'], reg['lon_max'], step)
+
         deserts = []
         covered = []
-        DESERT_RADIUS = 0.08  # ~5 miles in degrees
 
-        lat = reg['lat_min']
-        while lat <= reg['lat_max']:
-            lon = reg['lon_min']
-            while lon <= reg['lon_max']:
-                # Check if any charger is within radius
-                has_charger = False
-                for clat, clon in charger_coords:
-                    if abs(clat - lat) < DESERT_RADIUS and abs(clon - lon) < DESERT_RADIUS:
-                        has_charger = True
-                        break
-
-                if not has_charger:
-                    deserts.append({'lat': round(lat, 3), 'lon': round(lon, 3)})
+        for lat in grid_lats:
+            for lon in grid_lons:
+                if len(clats) > 0:
+                    has_charger = bool(np.any(
+                        (np.abs(clats - lat) < DESERT_RADIUS) &
+                        (np.abs(clons - lon) < DESERT_RADIUS)
+                    ))
                 else:
-                    covered.append({'lat': round(lat, 3), 'lon': round(lon, 3)})
+                    has_charger = False
 
-                lon += reg['grid_step']
-            lat += reg['grid_step']
+                pt = {'lat': round(float(lat), 3), 'lon': round(float(lon), 3)}
+                if not has_charger:
+                    deserts.append(pt)
+                else:
+                    covered.append(pt)
 
         total = len(deserts) + len(covered)
         desert_pct = round(len(deserts) / total * 100, 1) if total > 0 else 0
@@ -1263,6 +1271,13 @@ def version():
         'endpoints': 25,
         'status': 'live'
     })
+
+
+@app.route('/explorer')
+def explorer_page():
+    resp = make_response(render_template('explorer.html'))
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return resp
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

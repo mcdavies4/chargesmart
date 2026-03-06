@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Explorer — ChargeSmart</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root{--green:#00ff87;--dark:#0a0a0f;--card:#0d1117;--border:#1e1e2e;--text:#e0e0e0;--muted:#6b6b80;--red:#ff5050;--blue:#4488ff;}
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{background:var(--dark);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;}
+        .grid-bg{position:fixed;inset:0;background-image:linear-gradient(rgba(0,255,135,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,0.03) 1px,transparent 1px);background-size:50px 50px;pointer-events:none;z-index:0;}
+        .wrap{max-width:1100px;margin:0 auto;padding:0 20px;position:relative;z-index:1;}
+
+        /* NAV */
+        nav{padding:20px 0;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);margin-bottom:32px;}
+        .logo{font-family:'Space Mono',monospace;font-size:15px;font-weight:700;color:var(--green);text-decoration:none;}
+        .nav-links{display:flex;gap:12px;}
+        .nav-links a{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);text-decoration:none;border:1px solid var(--border);border-radius:20px;padding:5px 12px;letter-spacing:1px;}
+        .nav-links a:hover{color:var(--green);border-color:rgba(0,255,135,0.3);}
+
+        /* HEADER */
+        .page-header{margin-bottom:32px;}
+        .page-header h1{font-size:32px;font-weight:800;margin-bottom:6px;}
+        .page-header p{font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);}
+
+        /* KEY INPUT */
+        .key-bar{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;display:flex;gap:12px;align-items:center;margin-bottom:28px;flex-wrap:wrap;}
+        .key-bar label{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;white-space:nowrap;}
+        .key-bar input{flex:1;min-width:200px;background:#050508;border:1px solid var(--border);border-radius:8px;padding:9px 14px;color:var(--green);font-family:'Space Mono',monospace;font-size:12px;outline:none;}
+        .key-bar input:focus{border-color:var(--green);}
+        .key-status{font-family:'Space Mono',monospace;font-size:10px;padding:4px 10px;border-radius:20px;}
+        .key-status.ok{color:var(--green);background:rgba(0,255,135,0.1);border:1px solid rgba(0,255,135,0.3);}
+        .key-status.empty{color:var(--muted);background:rgba(255,255,255,0.03);border:1px solid var(--border);}
+
+        /* LAYOUT */
+        .layout{display:grid;grid-template-columns:260px 1fr;gap:20px;align-items:start;}
+
+        /* SIDEBAR */
+        .sidebar{position:sticky;top:20px;}
+        .category{margin-bottom:20px;}
+        .cat-label{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:2px;padding:0 12px;margin-bottom:6px;}
+        .ep-btn{display:block;width:100%;text-align:left;background:none;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);transition:all 0.15s;}
+        .ep-btn:hover{background:rgba(255,255,255,0.04);color:var(--text);}
+        .ep-btn.active{background:rgba(0,255,135,0.08);color:var(--green);border-left:2px solid var(--green);}
+        .ep-method{display:inline-block;font-size:9px;padding:2px 5px;border-radius:4px;margin-right:6px;font-weight:700;}
+        .ep-method.GET{background:rgba(68,136,255,0.15);color:var(--blue);}
+        .ep-method.POST{background:rgba(255,136,0,0.15);color:#ff8800;}
+
+        /* MAIN PANEL */
+        .panel{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+        .panel-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+        .panel-title{font-size:18px;font-weight:800;margin-bottom:4px;}
+        .panel-desc{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);line-height:1.6;}
+        .panel-path{font-family:'Space Mono',monospace;font-size:11px;color:var(--blue);background:rgba(68,136,255,0.08);padding:4px 10px;border-radius:6px;white-space:nowrap;}
+
+        /* PARAMS */
+        .params-section{padding:20px 24px;border-bottom:1px solid var(--border);}
+        .params-title{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:14px;}
+        .param-row{display:grid;grid-template-columns:140px 1fr 80px;gap:10px;align-items:center;margin-bottom:10px;}
+        .param-name{font-family:'Space Mono',monospace;font-size:12px;color:var(--green);}
+        .param-input{background:#050508;border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Space Mono',monospace;font-size:12px;outline:none;width:100%;}
+        .param-input:focus{border-color:var(--green);}
+        .param-select{background:#050508;border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Space Mono',monospace;font-size:12px;outline:none;width:100%;}
+        .param-required{font-family:'Space Mono',monospace;font-size:9px;color:var(--red);text-align:center;}
+        .param-optional{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);text-align:center;}
+
+        /* RUN BUTTON */
+        .run-section{padding:16px 24px;display:flex;gap:12px;align-items:center;border-bottom:1px solid var(--border);}
+        .run-btn{background:var(--green);border:none;border-radius:8px;padding:10px 24px;color:#0a0a0f;font-family:'Space Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px;transition:all 0.2s;}
+        .run-btn:hover{box-shadow:0 4px 16px rgba(0,255,135,0.3);transform:translateY(-1px);}
+        .run-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+        .url-preview{flex:1;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);word-break:break-all;line-height:1.5;}
+
+        /* RESPONSE */
+        .response-section{padding:20px 24px;}
+        .response-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+        .response-title{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;}
+        .response-meta{display:flex;gap:8px;}
+        .status-badge{font-family:'Space Mono',monospace;font-size:10px;padding:3px 10px;border-radius:20px;}
+        .status-badge.ok{background:rgba(0,255,135,0.1);color:var(--green);border:1px solid rgba(0,255,135,0.2);}
+        .status-badge.err{background:rgba(255,80,80,0.1);color:var(--red);border:1px solid rgba(255,80,80,0.2);}
+        .status-badge.time{background:rgba(255,255,255,0.04);color:var(--muted);border:1px solid var(--border);}
+        .response-box{background:#050508;border:1px solid var(--border);border-radius:8px;padding:16px;font-family:'Space Mono',monospace;font-size:12px;line-height:1.7;overflow-x:auto;max-height:500px;overflow-y:auto;white-space:pre-wrap;word-break:break-word;}
+        .response-empty{text-align:center;padding:40px;color:var(--muted);font-family:'Space Mono',monospace;font-size:12px;}
+
+        /* JSON COLOURS */
+        .j-key{color:#79b8ff;}
+        .j-str{color:#9ecbff;}
+        .j-num{color:var(--green);}
+        .j-bool{color:#ffab70;}
+        .j-null{color:var(--muted);}
+
+        /* TABS */
+        .tabs{display:flex;gap:2px;margin-bottom:12px;}
+        .tab{font-family:'Space Mono',monospace;font-size:10px;padding:5px 14px;border-radius:6px;cursor:pointer;color:var(--muted);background:none;border:none;}
+        .tab.active{background:rgba(0,255,135,0.1);color:var(--green);}
+
+        @media(max-width:700px){
+            .layout{grid-template-columns:1fr;}
+            .sidebar{position:static;}
+            .param-row{grid-template-columns:1fr 1fr;}
+            .param-required,.param-optional{display:none;}
+        }
+    </style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="wrap">
+    <nav>
+        <a href="/" class="logo">⚡ ChargeSmart</a>
+        <div class="nav-links">
+            <a href="/developers">📖 DOCS</a>
+            <a href="/account">👤 ACCOUNT</a>
+        </div>
+    </nav>
+
+    <div class="page-header">
+        <h1>API Explorer</h1>
+        <p>// Test any endpoint live — no code needed</p>
+    </div>
+
+    <!-- KEY BAR -->
+    <div class="key-bar">
+        <label>API KEY</label>
+        <input type="text" id="api-key-input" placeholder="cs_live_your_key_here" oninput="onKeyChange()">
+        <span class="key-status empty" id="key-status">NO KEY</span>
+    </div>
+
+    <div class="layout">
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <div class="category">
+                <div class="cat-label">FREE TIER</div>
+                <button class="ep-btn active" onclick="selectEndpoint('predict')"><span class="ep-method GET">GET</span>predict</button>
+                <button class="ep-btn" onclick="selectEndpoint('nearest')"><span class="ep-method GET">GET</span>nearest</button>
+                <button class="ep-btn" onclick="selectEndpoint('deserts')"><span class="ep-method GET">GET</span>deserts</button>
+                <button class="ep-btn" onclick="selectEndpoint('carbon')"><span class="ep-method GET">GET</span>carbon</button>
+                <button class="ep-btn" onclick="selectEndpoint('reviews')"><span class="ep-method GET">GET</span>reviews</button>
+            </div>
+            <div class="category">
+                <div class="cat-label">DEVELOPER</div>
+                <button class="ep-btn" onclick="selectEndpoint('peak-hours')"><span class="ep-method GET">GET</span>peak-hours</button>
+                <button class="ep-btn" onclick="selectEndpoint('forecast')"><span class="ep-method GET">GET</span>forecast</button>
+                <button class="ep-btn" onclick="selectEndpoint('coverage')"><span class="ep-method GET">GET</span>coverage</button>
+                <button class="ep-btn" onclick="selectEndpoint('gap-score')"><span class="ep-method GET">GET</span>gap-score</button>
+                <button class="ep-btn" onclick="selectEndpoint('nearest-ops')"><span class="ep-method GET">GET</span>operators</button>
+                <button class="ep-btn" onclick="selectEndpoint('compare')"><span class="ep-method GET">GET</span>compare</button>
+                <button class="ep-btn" onclick="selectEndpoint('heatmap')"><span class="ep-method GET">GET</span>heatmap</button>
+            </div>
+            <div class="category">
+                <div class="cat-label">GOVERNMENT</div>
+                <button class="ep-btn" onclick="selectEndpoint('gov-investment')"><span class="ep-method GET">GET</span>investment-priority</button>
+                <button class="ep-btn" onclick="selectEndpoint('gov-density')"><span class="ep-method GET">GET</span>charger-density</button>
+                <button class="ep-btn" onclick="selectEndpoint('gov-netzero')"><span class="ep-method GET">GET</span>netzero</button>
+                <button class="ep-btn" onclick="selectEndpoint('gov-disparity')"><span class="ep-method GET">GET</span>disparity</button>
+                <button class="ep-btn" onclick="selectEndpoint('gov-planning')"><span class="ep-method GET">GET</span>planning</button>
+            </div>
+            <div class="category">
+                <div class="cat-label">BUSINESS</div>
+                <button class="ep-btn" onclick="selectEndpoint('biz-site')"><span class="ep-method GET">GET</span>site-score</button>
+                <button class="ep-btn" onclick="selectEndpoint('biz-competitor')"><span class="ep-method GET">GET</span>competitor-audit</button>
+                <button class="ep-btn" onclick="selectEndpoint('biz-property')"><span class="ep-method GET">GET</span>property-score</button>
+                <button class="ep-btn" onclick="selectEndpoint('biz-retail')"><span class="ep-method GET">GET</span>retail-opportunity</button>
+            </div>
+        </div>
+
+        <!-- MAIN PANEL -->
+        <div class="panel">
+            <div class="panel-header">
+                <div>
+                    <div class="panel-title" id="panel-title">Predict Availability</div>
+                    <div class="panel-desc" id="panel-desc">AI prediction for whether a charger will be free or busy at a given location and time.</div>
+                </div>
+                <div class="panel-path" id="panel-path">GET /api/v1/predict</div>
+            </div>
+
+            <div class="params-section">
+                <div class="params-title">// PARAMETERS</div>
+                <div id="params-container"></div>
+            </div>
+
+            <div class="run-section">
+                <button class="run-btn" id="run-btn" onclick="runEndpoint()">▶ RUN</button>
+                <div class="url-preview" id="url-preview">Enter your API key and click RUN</div>
+            </div>
+
+            <div class="response-section">
+                <div class="response-header">
+                    <div class="response-title">// RESPONSE</div>
+                    <div class="response-meta" id="response-meta"></div>
+                </div>
+                <div class="tabs">
+                    <button class="tab active" onclick="showTab('pretty')">Pretty</button>
+                    <button class="tab" onclick="showTab('raw')">Raw</button>
+                </div>
+                <div class="response-box" id="response-box">
+                    <div class="response-empty">Select an endpoint and click RUN to see results</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="text-align:center;padding:40px 0;font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);">
+        <a href="/developers" style="color:var(--muted);">Full API Docs</a> &nbsp;·&nbsp;
+        <a href="/" style="color:var(--muted);">← Back to app</a>
+    </div>
+</div>
+
+<script>
+var BASE = window.location.origin;
+var currentEndpoint = 'predict';
+var lastRawResponse = null;
+var currentTab = 'pretty';
+
+var ENDPOINTS = {
+    'predict': {
+        title: 'Predict Availability',
+        desc: 'AI prediction for whether a charger will be free or busy at a given time and location.',
+        path: '/api/v1/predict',
+        method: 'GET',
+        params: [
+            {name:'lat', label:'Latitude',  type:'number', default:'51.5074', required:true,  hint:'e.g. 51.5074 (London)'},
+            {name:'lon', label:'Longitude', type:'number', default:'-0.1278', required:true,  hint:'e.g. -0.1278 (London)'},
+            {name:'hour',label:'Hour',      type:'select', default:'14',      required:false, options:Array.from({length:24},(_,i)=>({v:i,l:i+':00'}))},
+            {name:'day', label:'Day',       type:'select', default:'1',       required:false, options:[{v:0,l:'Monday'},{v:1,l:'Tuesday'},{v:2,l:'Wednesday'},{v:3,l:'Thursday'},{v:4,l:'Friday'},{v:5,l:'Saturday'},{v:6,l:'Sunday'}]},
+        ]
+    },
+    'nearest': {
+        title: 'Nearest Chargers',
+        desc: 'Returns the closest chargers to a location with AI availability predictions.',
+        path: '/api/v1/nearest',
+        method: 'GET',
+        params: [
+            {name:'lat',    label:'Latitude',  type:'number', default:'51.5074', required:true},
+            {name:'lon',    label:'Longitude', type:'number', default:'-0.1278', required:true},
+            {name:'radius', label:'Radius (miles)', type:'number', default:'2', required:false},
+        ]
+    },
+    'deserts': {
+        title: 'Charger Deserts',
+        desc: 'Areas with no EV charger within 5 miles. Broken down by sub-region.',
+        path: '/api/v1/deserts',
+        method: 'GET',
+        params: [
+            {name:'region', label:'Region', type:'select', default:'uk', required:false,
+             options:[{v:'uk',l:'United Kingdom'},{v:'us_east',l:'US East'},{v:'us_west',l:'US West'},{v:'germany',l:'Germany'},{v:'france',l:'France'},{v:'netherlands',l:'Netherlands'}]},
+        ]
+    },
+    'carbon': {
+        title: 'Carbon Savings',
+        desc: 'Estimated CO2 saved by EV charging vs petrol for a journey.',
+        path: '/api/v1/carbon',
+        method: 'GET',
+        params: [
+            {name:'miles',  label:'Miles',      type:'number', default:'100',  required:true},
+            {name:'kwh',    label:'kWh/100mi',  type:'number', default:'30',   required:false},
+            {name:'country',label:'Country',    type:'select', default:'UK',   required:false, options:[{v:'UK',l:'UK'},{v:'US',l:'US'},{v:'EU',l:'EU'}]},
+        ]
+    },
+    'reviews': {
+        title: 'Charger Reviews',
+        desc: 'Community ratings and fault reports for chargers near a location.',
+        path: '/api/v1/reviews',
+        method: 'GET',
+        params: [
+            {name:'lat', label:'Latitude',  type:'number', default:'51.5074', required:true},
+            {name:'lon', label:'Longitude', type:'number', default:'-0.1278', required:true},
+        ]
+    },
+    'peak-hours': {
+        title: 'Peak Hours',
+        desc: 'Hourly demand breakdown showing best and worst times to charge.',
+        path: '/api/v1/peak-hours',
+        method: 'GET',
+        params: [
+            {name:'lat',     label:'Latitude',  type:'number', default:'51.5074', required:true},
+            {name:'lon',     label:'Longitude', type:'number', default:'-0.1278', required:true},
+            {name:'country', label:'Country',   type:'select', default:'UK', required:false, options:[{v:'UK',l:'UK'},{v:'US',l:'US'},{v:'EU',l:'EU'}]},
+        ]
+    },
+    'forecast': {
+        title: '24-Hour Forecast',
+        desc: 'Hourly availability forecast for the next 24 hours at a location.',
+        path: '/api/v1/forecast',
+        method: 'GET',
+        params: [
+            {name:'lat', label:'Latitude',  type:'number', default:'51.5074', required:true},
+            {name:'lon', label:'Longitude', type:'number', default:'-0.1278', required:true},
+        ]
+    },
+    'coverage': {
+        title: 'Coverage Grade',
+        desc: 'A-F coverage score for any location based on nearby charger density.',
+        path: '/api/v1/coverage',
+        method: 'GET',
+        params: [
+            {name:'lat',    label:'Latitude',     type:'number', default:'51.5074', required:true},
+            {name:'lon',    label:'Longitude',    type:'number', default:'-0.1278', required:true},
+            {name:'radius', label:'Radius (mi)',  type:'number', default:'10',      required:false},
+        ]
+    },
+    'gap-score': {
+        title: 'Infrastructure Gap Score',
+        desc: '0-100 gap score showing how underserved an area is for EV charging.',
+        path: '/api/v1/gap-score',
+        method: 'GET',
+        params: [
+            {name:'lat', label:'Latitude',  type:'number', default:'51.5074', required:true},
+            {name:'lon', label:'Longitude', type:'number', default:'-0.1278', required:true},
+        ]
+    },
+    'nearest-ops': {
+        title: 'Operators',
+        desc: 'Full operator intelligence — charger counts, capacity, location types.',
+        path: '/api/v1/operators',
+        method: 'GET',
+        params: [
+            {name:'country', label:'Country', type:'select', default:'UK', required:false, options:[{v:'UK',l:'UK'},{v:'US',l:'US'},{v:'EU',l:'EU'}]},
+        ]
+    },
+    'compare': {
+        title: 'Country Comparison',
+        desc: 'Side-by-side comparison of EV infrastructure across UK, US and EU.',
+        path: '/api/v1/compare',
+        method: 'GET',
+        params: []
+    },
+    'heatmap': {
+        title: 'Heatmap Data',
+        desc: 'Grid density data ready to render as a heatmap on any mapping library.',
+        path: '/api/v1/heatmap',
+        method: 'GET',
+        params: [
+            {name:'country',    label:'Country',    type:'select', default:'UK', required:false, options:[{v:'UK',l:'UK'},{v:'US',l:'US'},{v:'EU',l:'EU'}]},
+            {name:'resolution', label:'Resolution', type:'select', default:'low', required:false, options:[{v:'low',l:'Low (fast)'},{v:'high',l:'High (detailed)'}]},
+        ]
+    },
+    'gov-investment': {
+        title: 'Investment Priority',
+        desc: 'Ranked areas by gap score for infrastructure investment decisions.',
+        path: '/api/v1/gov/investment-priority',
+        method: 'GET',
+        params: [
+            {name:'country', label:'Country', type:'select', default:'UK', required:false, options:[{v:'UK',l:'UK'},{v:'US',l:'US'},{v:'EU',l:'EU'}]},
+            {name:'top',     label:'Top N results', type:'number', default:'10', required:false},
+        ]
+    },
+    'gov-density': {
+        title: 'Charger Density',
+        desc: 'Chargers per 100,000 residents by region with A-F grades.',
+        path: '/api/v1/gov/charger-density',
+        method: 'GET',
+        params: [
+            {name:'country', label:'Country', type:'select', default:'UK', required:false, options:[{v:'UK',l:'UK'},{v:'US',l:'US'},{v:'EU',l:'EU'}]},
+        ]
+    },
+    'gov-netzero': {
+        title: 'Net Zero Progress',
+        desc: 'Progress vs 2030 EV infrastructure targets with CO2 impact estimates.',
+        path: '/api/v1/gov/netzero',
+        method: 'GET',
+        params: [
+            {name:'country', label:'Country', type:'select', default:'UK', required:false, options:[{v:'UK',l:'UK'},{v:'US',l:'US'},{v:'EU',l:'EU'}]},
+        ]
+    },
+    'gov-disparity': {
+        title: 'Rural vs Urban Disparity',
+        desc: 'Charging gap analysis between urban and rural areas.',
+        path: '/api/v1/gov/disparity',
+        method: 'GET',
+        params: [
+            {name:'country', label:'Country', type:'select', default:'UK', required:false, options:[{v:'UK',l:'UK'},{v:'US',l:'US'},{v:'EU',l:'EU'}]},
+        ]
+    },
+    'gov-planning': {
+        title: 'Planning Support',
+        desc: 'Planning application data with policy references (NPPF Paragraph 105).',
+        path: '/api/v1/gov/planning',
+        method: 'GET',
+        params: [
+            {name:'lat', label:'Latitude',  type:'number', default:'51.5074', required:true},
+            {name:'lon', label:'Longitude', type:'number', default:'-0.1278', required:true},
+        ]
+    },
+    'biz-site': {
+        title: 'Site Score',
+        desc: 'A-D suitability score for commercial EV charging installation with ROI estimate.',
+        path: '/api/v1/biz/site-score',
+        method: 'GET',
+        params: [
+            {name:'lat', label:'Latitude',  type:'number', default:'51.5074', required:true},
+            {name:'lon', label:'Longitude', type:'number', default:'-0.1278', required:true},
+        ]
+    },
+    'biz-competitor': {
+        title: 'Competitor Audit',
+        desc: 'Full audit of competing chargers within a radius with threat levels.',
+        path: '/api/v1/biz/competitor-audit',
+        method: 'GET',
+        params: [
+            {name:'lat',    label:'Latitude',     type:'number', default:'51.5074', required:true},
+            {name:'lon',    label:'Longitude',    type:'number', default:'-0.1278', required:true},
+            {name:'radius', label:'Radius (mi)',  type:'number', default:'2',       required:false},
+        ]
+    },
+    'biz-property': {
+        title: 'Property EV Score',
+        desc: 'A-F EV score for a property with embeddable HTML badge.',
+        path: '/api/v1/biz/property-score',
+        method: 'GET',
+        params: [
+            {name:'lat', label:'Latitude',  type:'number', default:'51.5074', required:true},
+            {name:'lon', label:'Longitude', type:'number', default:'-0.1278', required:true},
+        ]
+    },
+    'biz-retail': {
+        title: 'Retail Opportunity',
+        desc: 'Revenue projection for installing chargers at a retail site.',
+        path: '/api/v1/biz/retail-opportunity',
+        method: 'GET',
+        params: [
+            {name:'lat', label:'Latitude',  type:'number', default:'51.5074', required:true},
+            {name:'lon', label:'Longitude', type:'number', default:'-0.1278', required:true},
+        ]
+    },
+};
+
+function selectEndpoint(id) {
+    currentEndpoint = id;
+    var ep = ENDPOINTS[id];
+    document.getElementById('panel-title').textContent = ep.title;
+    document.getElementById('panel-desc').textContent  = ep.desc;
+    document.getElementById('panel-path').textContent  = ep.method + ' ' + ep.path;
+
+    // Rebuild params
+    var html = '';
+    ep.params.forEach(function(p) {
+        html += '<div class="param-row">';
+        html += '<div class="param-name">' + p.name + '</div>';
+        if (p.type === 'select') {
+            html += '<select class="param-select" id="param-' + p.name + '">';
+            (p.options||[]).forEach(function(o) {
+                html += '<option value="' + o.v + '"' + (String(o.v)===String(p.default)?' selected':'') + '>' + o.l + '</option>';
+            });
+            html += '</select>';
+        } else {
+            html += '<input type="text" class="param-input" id="param-' + p.name + '" value="' + (p.default||'') + '" placeholder="' + (p.hint||p.label) + '" oninput="updateUrlPreview()">';
+        }
+        html += '<div class="' + (p.required ? 'param-required' : 'param-optional') + '">' + (p.required ? 'required' : 'optional') + '</div>';
+        html += '</div>';
+    });
+    if (ep.params.length === 0) {
+        html = '<div style="font-family:Space Mono,monospace;font-size:12px;color:var(--muted);">No parameters required</div>';
+    }
+    document.getElementById('params-container').innerHTML = html;
+
+    // Reset response
+    document.getElementById('response-box').innerHTML = '<div class="response-empty">Click RUN to call this endpoint</div>';
+    document.getElementById('response-meta').innerHTML = '';
+
+    // Update active button
+    document.querySelectorAll('.ep-btn').forEach(function(b) { b.classList.remove('active'); });
+    event.target.closest('.ep-btn').classList.add('active');
+
+    updateUrlPreview();
+}
+
+function buildUrl() {
+    var key = document.getElementById('api-key-input').value.trim();
+    var ep  = ENDPOINTS[currentEndpoint];
+    var params = [];
+    ep.params.forEach(function(p) {
+        var el = document.getElementById('param-' + p.name);
+        if (el && el.value) params.push(p.name + '=' + encodeURIComponent(el.value));
+    });
+    if (key) params.push('key=' + key);
+    return BASE + ep.path + (params.length ? '?' + params.join('&') : '');
+}
+
+function updateUrlPreview() {
+    document.getElementById('url-preview').textContent = buildUrl();
+}
+
+function onKeyChange() {
+    var key = document.getElementById('api-key-input').value.trim();
+    var st  = document.getElementById('key-status');
+    if (key.startsWith('cs_live_')) {
+        st.textContent = '✓ KEY SET';
+        st.className = 'key-status ok';
+    } else if (key) {
+        st.textContent = 'INVALID FORMAT';
+        st.className = 'key-status empty';
+    } else {
+        st.textContent = 'NO KEY';
+        st.className = 'key-status empty';
+    }
+    updateUrlPreview();
+}
+
+function runEndpoint() {
+    var key = document.getElementById('api-key-input').value.trim();
+    if (!key) { alert('Paste your API key at the top first'); return; }
+
+    var btn = document.getElementById('run-btn');
+    btn.textContent = '⟳ RUNNING...';
+    btn.disabled = true;
+
+    var url   = buildUrl();
+    var start = Date.now();
+
+    fetch(url)
+    .then(function(r) {
+        var ms = Date.now() - start;
+        var ok = r.ok;
+        return r.json().then(function(d) { return {data:d, ok:ok, ms:ms, status:r.status}; });
+    })
+    .then(function(res) {
+        btn.textContent = '▶ RUN';
+        btn.disabled = false;
+        lastRawResponse = res.data;
+
+        // Status badges
+        document.getElementById('response-meta').innerHTML =
+            '<span class="status-badge ' + (res.ok?'ok':'err') + '">' + res.status + ' ' + (res.ok?'OK':'ERROR') + '</span>' +
+            '<span class="status-badge time">' + res.ms + 'ms</span>';
+
+        showTab(currentTab);
+    })
+    .catch(function(err) {
+        btn.textContent = '▶ RUN';
+        btn.disabled = false;
+        document.getElementById('response-box').textContent = 'Network error: ' + err.message;
+    });
+}
+
+function showTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+    event && event.target && event.target.classList && event.target.classList.add('active');
+
+    if (!lastRawResponse) return;
+
+    var box = document.getElementById('response-box');
+    if (tab === 'raw') {
+        box.textContent = JSON.stringify(lastRawResponse, null, 2);
+    } else {
+        box.innerHTML = syntaxHighlight(JSON.stringify(lastRawResponse, null, 2));
+    }
+}
+
+function syntaxHighlight(json) {
+    return json
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function(m) {
+            var cls = 'j-num';
+            if (/^"/.test(m)) cls = /:$/.test(m) ? 'j-key' : 'j-str';
+            else if (/true|false/.test(m)) cls = 'j-bool';
+            else if (/null/.test(m)) cls = 'j-null';
+            return '<span class="' + cls + '">' + m + '</span>';
+        });
+}
+
+// Pre-fill key if stored
+window.addEventListener('DOMContentLoaded', function() {
+    var saved = localStorage.getItem('cs_api_key');
+    if (saved) {
+        document.getElementById('api-key-input').value = saved;
+        onKeyChange();
+    }
+    selectEndpoint('predict');
+    // Add default predict click
+    document.querySelector('.ep-btn').classList.add('active');
+});
+
+document.getElementById('api-key-input').addEventListener('change', function() {
+    localStorage.setItem('cs_api_key', this.value.trim());
+});
+</script>
+</body>
+</html>
