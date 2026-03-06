@@ -81,19 +81,18 @@ def create_magic_token(email):
     return token
 
 def verify_magic_token(token):
-    """Returns email if valid, None if expired/used/invalid"""
+    """Returns (valid, email, error) tuple"""
     tokens = load_tokens()
     if token not in tokens:
-        return None
+        return False, None, 'Invalid or expired link'
     t = tokens[token]
     if t['used']:
-        return None
+        return False, None, 'This link has already been used'
     if datetime.fromisoformat(t['expires']) < datetime.now():
-        return None
-    # Mark as used
+        return False, None, 'This link has expired — request a new one'
     tokens[token]['used'] = True
     save_tokens(tokens)
-    return t['email']
+    return True, t['email'], None
 
 # ── SESSIONS ─────────────────────────────────────────────────
 def create_session(uid):

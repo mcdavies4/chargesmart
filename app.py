@@ -2503,7 +2503,7 @@ def auth_request():
         if not email or '@' not in email:
             return jsonify({'error': 'Valid email required'}), 400
         # Create user if first time
-        create_user(email, name=name, source=data.get('source', 'direct'))
+        get_or_create_user(email, name)
         token    = create_magic_token(email)
         base_url = request.host_url
         sent     = send_magic_link(email, token, base_url)
