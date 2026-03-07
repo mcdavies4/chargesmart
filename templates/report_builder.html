@@ -57,6 +57,17 @@ body::before {
   letter-spacing:3px; color:var(--muted); text-transform:uppercase;
 }
 .topbar-center span { color:var(--green); }
+
+  .tb-nav-links { display:flex; align-items:center; gap:4px; }
+  .tb-nav-link {
+    font-family:'DM Mono',monospace; font-size:10px; letter-spacing:1px;
+    color:var(--muted); text-decoration:none; padding:5px 10px;
+    border-radius:20px; border:1px solid transparent; transition:all 0.15s; white-space:nowrap;
+  }
+  .tb-nav-link:hover { color:var(--text); border-color:var(--border); }
+  .tb-nav-link.active { color:var(--green); border-color:var(--green); background:var(--dim); }
+  @media(max-width:900px){ .tb-nav-links { display:none; } }
+
 .back-btn {
   font-family:'DM Mono',monospace; font-size:10px; letter-spacing:2px;
   color:var(--muted); text-decoration:none; text-transform:uppercase;
@@ -268,8 +279,17 @@ body::before {
 
 <nav class="topbar">
   <a href="/" class="logo"><div class="logo-dot"></div>ChargeSmart</a>
-  <div class="topbar-center">Report <span>Builder</span></div>
-  <a href="/dashboard" class="back-btn">← Dashboard</a>
+  <div class="tb-nav-links">
+    <a href="/solutions"      class="tb-nav-link">Solutions</a>
+    <a href="/explorer"       class="tb-nav-link">Explorer</a>
+    <a href="/leaderboard"    class="tb-nav-link">Leaderboard</a>
+    <a href="/dashboard"      class="tb-nav-link">📊 Dashboard</a>
+    <a href="/report-builder" class="tb-nav-link active">📋 Reports</a>
+    <a href="/developers"     class="tb-nav-link">API Docs</a>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <a href="/login" class="back-btn">Login</a>
+  </div>
 </nav>
 
 <div class="builder-layout">

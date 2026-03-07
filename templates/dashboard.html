@@ -46,6 +46,30 @@
     z-index: 0;
   }
 
+
+  .topbar-center-links {
+    display: flex; align-items: center; gap: 4px;
+  }
+  .tb-link {
+    font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1px;
+    color: var(--muted); text-decoration: none; padding: 5px 10px;
+    border-radius: 20px; border: 1px solid transparent;
+    transition: all 0.15s; white-space: nowrap;
+  }
+  .tb-link:hover { color: var(--text); border-color: var(--border); }
+  .tb-link.active { color: var(--green); border-color: var(--green); background: var(--dim); }
+  .tb-link.gold   { color: #f5c842;      border-color: #f5c842;      background: rgba(245,200,66,0.07); }
+  .tb-cta {
+    font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1px;
+    color: var(--green); text-decoration: none; padding: 5px 12px;
+    border: 1px solid var(--green); border-radius: 20px;
+    transition: all 0.15s; white-space: nowrap;
+  }
+  .tb-cta:hover { background: var(--green); color: var(--bg); }
+  @media (max-width: 900px) {
+    .topbar-center-links { display: none; }
+  }
+
   /* ── TOPBAR ── */
   .topbar {
     position: sticky; top: 0; z-index: 100;
@@ -380,13 +404,21 @@
 
 <!-- TOPBAR -->
 <nav class="topbar">
-  <div class="logo">
+  <a href="/" style="text-decoration:none" class="logo">
     <div class="logo-dot"></div>
     ChargeSmart
+  </a>
+  <div class="topbar-center-links">
+    <a href="/solutions"      class="tb-link">Solutions</a>
+    <a href="/explorer"       class="tb-link">Explorer</a>
+    <a href="/leaderboard"    class="tb-link">Leaderboard</a>
+    <a href="/dashboard"      class="tb-link active">📊 Dashboard</a>
+    <a href="/report-builder" class="tb-link gold">📋 Reports</a>
+    <a href="/developers"     class="tb-link">API Docs</a>
   </div>
   <div class="topbar-right">
-    <div class="top-badge">Intelligence Dashboard <span>v2.0</span></div>
     <div class="top-badge">Data: <span id="last-updated">Live</span></div>
+    <a href="/login" class="tb-cta">Login</a>
   </div>
 </nav>
 

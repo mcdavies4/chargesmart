@@ -567,28 +567,75 @@ input:focus, select:focus {
 <div class="scene-canvas" id="scene-canvas"></div>
     <div class="container">
         <header>
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-                <div style="display:flex;align-items:center;gap:12px;">
-                    <div class="logo">⚡ ChargeSmart</div>
+            <!-- NAV -->
+            <style>
+            .cs-nav{display:flex;justify-content:space-between;align-items:center;gap:8px}
+            .cs-nav-logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
+            .cs-nav-links{display:flex;align-items:center;gap:6px}
+            .cs-nav-link{font-family:Space Mono,monospace;font-size:10px;letter-spacing:1px;text-decoration:none;border-radius:20px;padding:5px 11px;white-space:nowrap;border:1px solid var(--border);color:var(--muted);transition:all 0.15s}
+            .cs-nav-link:hover{color:var(--text);border-color:#555}
+            .cs-nav-link.green{color:var(--green);border-color:var(--green);background:rgba(0,232,122,0.07)}
+            .cs-nav-link.gold{color:#f5c842;border-color:#f5c842;background:rgba(245,200,66,0.07)}
+            .cs-nav-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+            .cs-hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:6px;border:1px solid var(--border);border-radius:8px;background:none}
+            .cs-hamburger span{display:block;width:20px;height:2px;background:var(--muted);border-radius:2px;transition:all 0.25s}
+            .cs-hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+            .cs-hamburger.open span:nth-child(2){opacity:0}
+            .cs-hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+            .cs-mobile-menu{display:none;flex-direction:column;gap:6px;padding:14px 0 8px;border-top:1px solid var(--border);margin-top:10px}
+            .cs-mobile-menu.open{display:flex}
+            .cs-mobile-link{font-family:Space Mono,monospace;font-size:11px;letter-spacing:1px;text-decoration:none;padding:10px 14px;border-radius:8px;color:var(--muted);border:1px solid var(--border);display:flex;align-items:center;gap:8px;transition:all 0.15s}
+            .cs-mobile-link:hover{color:var(--text);border-color:#555;background:#ffffff08}
+            .cs-mobile-link.green{color:var(--green);border-color:var(--green);background:rgba(0,232,122,0.06)}
+            .cs-mobile-link.gold{color:#f5c842;border-color:#f5c842;background:rgba(245,200,66,0.06)}
+            .cs-mobile-divider{height:1px;background:var(--border);margin:4px 0}
+            .cs-map-toggles{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+            @media(max-width:1100px){.cs-nav-links{display:none}.cs-hamburger{display:flex}}
+            @media(max-width:500px){.cs-join-btn{display:none!important}}
+            </style>
+
+            <div class="cs-nav">
+                <div class="cs-nav-logo">
+                    <a href="/" style="text-decoration:none"><div class="logo">⚡ ChargeSmart</div></a>
                     <span class="live-badge"><span class="live-dot"></span>LIVE</span>
                 </div>
-                <a href="/solutions" style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);text-decoration:none;border:1px solid var(--border);border-radius:20px;padding:5px 12px;letter-spacing:1px;white-space:nowrap;">🏢 SOLUTIONS</a>
-                <a href="/explorer" style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);text-decoration:none;border:1px solid var(--border);border-radius:20px;padding:5px 12px;letter-spacing:1px;white-space:nowrap;">🔬 EXPLORER</a>
-                <a href="/leaderboard" style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);text-decoration:none;border:1px solid var(--border);border-radius:20px;padding:5px 12px;letter-spacing:1px;white-space:nowrap;">🏆 LEADERBOARD</a>
-                <a href="/dashboard" style="font-family:Space Mono,monospace;font-size:10px;color:var(--green);text-decoration:none;border:1px solid var(--green);border-radius:20px;padding:5px 12px;letter-spacing:1px;white-space:nowrap;background:rgba(0,232,122,0.08);">📊 DASHBOARD</a>
-                <a href="/report-builder" style="font-family:Space Mono,monospace;font-size:10px;color:var(--gold, #f5c842);text-decoration:none;border:1px solid var(--gold, #f5c842);border-radius:20px;padding:5px 12px;letter-spacing:1px;white-space:nowrap;background:rgba(245,200,66,0.08);">📋 REPORTS</a>
-                <button onclick="openSignup()" style="background:var(--green);border:none;border-radius:20px;padding:6px 14px;color:#0a0a0f;font-family:Space Mono,monospace;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:1px;white-space:nowrap;">JOIN FREE</button>
-                <a href="/login" style="font-family:Space Mono,monospace;font-size:10px;color:var(--green);text-decoration:none;border:1px solid var(--green);border-radius:20px;padding:6px 14px;letter-spacing:1px;white-space:nowrap;">LOGIN</a>
-                <a href="/developers" style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);text-decoration:none;border:1px solid var(--border);border-radius:20px;padding:5px 12px;letter-spacing:1px;white-space:nowrap;">API DOCS</a>
-                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;">
-                <button onclick="startDemo()" style="padding:8px 16px;background:rgba(0,255,135,0.1);border:1px solid rgba(0,255,135,0.4);border-radius:20px;color:#00ff87;font-family:Space Mono,monospace;font-size:11px;cursor:pointer;letter-spacing:2px;">▶ DEMO</button>
-                <button id="range-toggle" class="fleet-toggle-btn" onclick="toggleRangeMode()">🔋 RANGE</button>
-                <button id="desert-toggle" class="fleet-toggle-btn" onclick="toggleDesertMode()">🏜 DESERTS</button>
-                <button id="cost-toggle" class="fleet-toggle-btn" onclick="toggleCostMode()">💰 COST CALC</button>
-                <button id="carbon-toggle" class="fleet-toggle-btn" onclick="toggleCarbonMode()">🌱 CARBON</button>
-                <button id="route-toggle" class="fleet-toggle-btn" onclick="toggleRouteMode()">🗺 ROUTE PLANNER</button>
-                <button id="fleet-toggle" class="fleet-toggle-btn" onclick="toggleFleetMode()">FLEET MODE</button>
+                <nav class="cs-nav-links">
+                    <a href="/solutions"      class="cs-nav-link">🏢 Solutions</a>
+                    <a href="/explorer"       class="cs-nav-link">🔬 Explorer</a>
+                    <a href="/leaderboard"    class="cs-nav-link">🏆 Leaderboard</a>
+                    <a href="/dashboard"      class="cs-nav-link green">📊 Dashboard</a>
+                    <a href="/report-builder" class="cs-nav-link gold">📋 Reports</a>
+                    <a href="/developers"     class="cs-nav-link">⚡ API Docs</a>
+                </nav>
+                <div class="cs-nav-actions">
+                    <div id="nav-auth-btns" style="display:flex;gap:6px">
+                        <button onclick="openSignup()" class="cs-join-btn" style="background:var(--green);border:none;border-radius:20px;padding:6px 13px;color:#0a0a0f;font-family:Space Mono,monospace;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:1px;white-space:nowrap;">JOIN FREE</button>
+                        <a href="/login" style="font-family:Space Mono,monospace;font-size:10px;color:var(--green);text-decoration:none;border:1px solid var(--green);border-radius:20px;padding:6px 12px;letter-spacing:1px;white-space:nowrap;">LOGIN</a>
+                    </div>
+                    <button class="cs-hamburger" id="cs-hamburger" onclick="toggleMobileMenu()" aria-label="Menu">
+                        <span></span><span></span><span></span>
+                    </button>
+                </div>
             </div>
+
+            <div class="cs-mobile-menu" id="cs-mobile-menu">
+                <a href="/solutions"      class="cs-mobile-link">🏢 Solutions</a>
+                <a href="/explorer"       class="cs-mobile-link">🔬 Explorer</a>
+                <a href="/leaderboard"    class="cs-mobile-link">🏆 Leaderboard</a>
+                <a href="/developers"     class="cs-mobile-link">⚡ API Docs</a>
+                <div class="cs-mobile-divider"></div>
+                <a href="/dashboard"      class="cs-mobile-link green">📊 Dashboard</a>
+                <a href="/report-builder" class="cs-mobile-link gold">📋 Reports</a>
+            </div>
+
+            <div class="cs-map-toggles">
+                <button onclick="startDemo()" style="padding:7px 13px;background:rgba(0,255,135,0.1);border:1px solid rgba(0,255,135,0.4);border-radius:20px;color:#00ff87;font-family:Space Mono,monospace;font-size:10px;cursor:pointer;letter-spacing:2px;">▶ DEMO</button>
+                <button id="range-toggle"  class="fleet-toggle-btn" onclick="toggleRangeMode()">🔋 RANGE</button>
+                <button id="desert-toggle" class="fleet-toggle-btn" onclick="toggleDesertMode()">🏜 DESERTS</button>
+                <button id="cost-toggle"   class="fleet-toggle-btn" onclick="toggleCostMode()">💰 COST CALC</button>
+                <button id="carbon-toggle" class="fleet-toggle-btn" onclick="toggleCarbonMode()">🌱 CARBON</button>
+                <button id="route-toggle"  class="fleet-toggle-btn" onclick="toggleRouteMode()">🗺 ROUTE PLANNER</button>
+                <button id="fleet-toggle"  class="fleet-toggle-btn" onclick="toggleFleetMode()">FLEET MODE</button>
             </div>
             <h1>Find a <span>free</span><br>charger near you</h1>
             <p class="subtitle">// AI predictions for UK EV chargers</p>
@@ -3374,5 +3421,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </script>
 
+
+    <script>
+    function toggleMobileMenu() {
+        var menu = document.getElementById('cs-mobile-menu');
+        var btn  = document.getElementById('cs-hamburger');
+        menu.classList.toggle('open');
+        btn.classList.toggle('open');
+    }
+    // Close on outside click
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.cs-hamburger') && !e.target.closest('.cs-mobile-menu')) {
+            var menu = document.getElementById('cs-mobile-menu');
+            var btn  = document.getElementById('cs-hamburger');
+            if (menu) menu.classList.remove('open');
+            if (btn)  btn.classList.remove('open');
+        }
+    });
+    </script>
 </body>
 </html>
