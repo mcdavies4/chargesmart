@@ -2499,6 +2499,12 @@ def get_current_user():
     return get_session_user(token)
 
 # ── REQUEST MAGIC LINK ───────────────────────────────────────
+
+# ── LOGIN PAGE ───────────────────────────────────────────────
+@app.route('/login')
+def login_page():
+    return render_template('login.html')
+
 @app.route('/auth/request', methods=['POST'])
 def auth_request():
     try:
