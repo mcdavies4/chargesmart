@@ -32,7 +32,14 @@ import secrets
 import string
 from datetime import datetime, date
 
-KEYS_FILE = 'api_keys.json'
+# Use /tmp on Railway (read-only filesystem), local otherwise
+import tempfile as _tmp, os as _os
+_data_dir = '/tmp' if not _os.access('.', _os.W_OK) else '.'
+KEYS_FILE = _os.path.join(_data_dir, 'api_keys.json')
+# Seed with any existing local api_keys.json
+if _os.path.exists('api_keys.json') and not _os.path.exists(KEYS_FILE):
+    import shutil as _sh
+    _sh.copy('api_keys.json', KEYS_FILE)
 
 TIER_LIMITS = {
     'free':       100,

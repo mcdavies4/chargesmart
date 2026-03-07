@@ -5,9 +5,15 @@ Magic link passwordless login + session management
 import json, os, secrets, hashlib
 from datetime import datetime, timedelta
 
-USERS_FILE   = 'users.json'
-TOKENS_FILE  = 'magic_tokens.json'
-SESSIONS_FILE= 'sessions.json'
+import os as _os
+_data_dir     = '/tmp' if not _os.access('.', _os.W_OK) else '.'
+USERS_FILE    = _os.path.join(_data_dir, 'users.json')
+TOKENS_FILE   = _os.path.join(_data_dir, 'magic_tokens.json')
+SESSIONS_FILE = _os.path.join(_data_dir, 'sessions.json')
+for _f in ['users.json', 'magic_tokens.json', 'sessions.json']:
+    _src = _f; _dst = _os.path.join(_data_dir, _f)
+    if _os.path.exists(_src) and not _os.path.exists(_dst):
+        import shutil as _sh; _sh.copy(_src, _dst)
 
 # ── FILE HELPERS ─────────────────────────────────────────────
 def load_users():
@@ -134,7 +140,7 @@ def send_magic_link(email, token, base_url):
     link = f"{base_url}auth/verify?token={token}"
 
     brevo_key  = os.environ.get('BREVO_API_KEY', '')
-    from_email = os.environ.get('FROM_EMAIL', 'hello@chargesmart.online')
+    from_email = os.environ.get('FROM_EMAIL', 'azubuikedavies@gmail.com')
     from_name  = os.environ.get('FROM_NAME', 'ChargeSmart')
 
     html_body = f"""
@@ -187,10 +193,19 @@ def send_magic_link(email, token, base_url):
                 method='POST'
             )
             resp = urllib.request.urlopen(req, timeout=10)
+            resp_body = resp.read().decode('utf-8')
+            print(f"✅ Brevo sent to {email} — status {resp.status}: {resp_body[:100]}")
             return True, 'Email sent via Brevo'
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode('utf-8')
+            print(f"❌ Brevo HTTP {e.code}: {err_body}")
+            print(f"\n{'='*60}")
+            print(f"MAGIC LINK FALLBACK for {email}:")
+            print(f"{link}")
+            print(f"{'='*60}\n")
+            return False, f"Brevo {e.code}: {err_body}"
         except Exception as e:
-            print(f"Brevo error: {e}")
-            # Fallback — log link so app never fully breaks
+            print(f"❌ Brevo error: {e}")
             print(f"\n{'='*60}")
             print(f"MAGIC LINK FALLBACK for {email}:")
             print(f"{link}")
