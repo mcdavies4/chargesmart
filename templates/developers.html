@@ -228,7 +228,7 @@
                     <li>99.9% uptime SLA</li>
                     <li>On-premise option</li>
                 </ul>
-                <a href="/cdn-cgi/l/email-protection#a7c6d7cee7c4cfc6d5c0c2d4cac6d5d389c8c9cbcec9c2" class="plan-btn plan-btn-paid">CONTACT US</a>
+                <a href="mailto:hello@chargesmart.online?subject=Enterprise%20API%20Enquiry" class="plan-btn plan-btn-paid">CONTACT US</a>
             </div>
         </div>
     </div>
@@ -744,7 +744,42 @@ print(f"Best time: {data['best_time_today']}")</pre>
     </footer>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js">
+        function upgradePlan(plan) {
+            var email = document.getElementById('reg-email') ? 
+                        document.getElementById('reg-email').value.trim() : '';
+            if (!email) {
+                email = prompt('Enter your email to continue:');
+                if (!email || !email.includes('@')) { 
+                    alert('Please enter a valid email to upgrade.'); 
+                    return; 
+                }
+            }
+            var btn = event.target;
+            btn.textContent = 'REDIRECTING...';
+            btn.disabled = true;
+            fetch('/create-checkout-session', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({plan: plan, email: email})
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.url) {
+                    window.location.href = d.url;
+                } else {
+                    alert(d.error || 'Could not start checkout. Please try again.');
+                    btn.textContent = 'UPGRADE';
+                    btn.disabled = false;
+                }
+            })
+            .catch(function(err) {
+                alert('Connection error. Please try again.');
+                btn.textContent = 'UPGRADE';
+                btn.disabled = false;
+            });
+        }
+</script><script>
 function toggleEndpoint(id) {
     var el = document.getElementById(id);
     el.classList.toggle('open');
