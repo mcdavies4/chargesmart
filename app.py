@@ -1947,6 +1947,15 @@ def api_batch_predict():
 # ═══════════════════════════════════════════════════════════════
 
 
+
+@app.route('/report-builder')
+def report_builder():
+    return render_template('report_builder.html')
+
+@app.route('/report')
+def report():
+    return render_template('report.html')
+
 @app.route('/dashboard')
 def dashboard():
     return render_template('dashboard.html')

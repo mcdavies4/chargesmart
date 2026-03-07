@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChargeSmart Report</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700;800&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:      #0d1f18;
+  --ink2:     #2d4a3e;
+  --muted:    #7a9a8a;
+  --border:   #ddeee6;
+  --bg:       #f8fdf9;
+  --green:    #00824a;
+  --green-lt: #e6f5ee;
+  --red:      #c0392b;
+  --amber:    #d97706;
+  --gold:     #b7860b;
+  --white:    #ffffff;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Source Sans 3', sans-serif;
+  min-height: 100vh;
+}
+
+/* ── TOOLBAR (screen only) ── */
+.toolbar {
+  position: sticky; top:0; z-index:100;
+  background: var(--ink); color: white;
+  padding: 12px 28px;
+  display: flex; align-items:center; justify-content:space-between;
+  gap:16px;
+}
+.toolbar-left { display:flex; align-items:center; gap:14px; }
+.tb-logo {
+  font-family:'DM Mono',monospace; font-size:11px; letter-spacing:3px;
+  color:#00e87a; text-transform:uppercase;
+}
+.tb-title { font-size:13px; color:#aaa; }
+.toolbar-right { display:flex; gap:10px; }
+.tb-btn {
+  font-family:'DM Mono',monospace; font-size:10px; letter-spacing:2px;
+  text-transform:uppercase; padding:7px 16px; border-radius:4px;
+  cursor:pointer; border:none; transition:all 0.15s;
+}
+.tb-btn-primary {
+  background:#00e87a; color:var(--ink);
+}
+.tb-btn-primary:hover { background:#00ff87; }
+.tb-btn-outline {
+  background:transparent; color:#aaa;
+  border:1px solid #333;
+}
+.tb-btn-outline:hover { color:white; border-color:#666; }
+.share-wrap { position:relative; display:inline-block; }
+.share-popup {
+  display:none; position:absolute; top:calc(100% + 8px); right:0;
+  background:white; border:1px solid var(--border); border-radius:6px;
+  padding:12px 16px; min-width:280px; box-shadow:0 8px 24px rgba(0,0,0,0.15);
+  z-index:200;
+}
+.share-popup.open { display:block; }
+.share-url {
+  font-family:'DM Mono',monospace; font-size:10px; color:var(--ink2);
+  background:#f0f8f3; border:1px solid var(--border);
+  padding:8px 10px; border-radius:4px; margin-bottom:8px;
+  word-break:break-all; cursor:text;
+}
+.share-copy {
+  width:100%; padding:8px; background:var(--green); color:white;
+  border:none; border-radius:4px; font-family:'DM Mono',monospace;
+  font-size:10px; letter-spacing:2px; cursor:pointer;
+  text-transform:uppercase;
+}
+.copied-msg { display:none; font-size:11px; color:var(--green); text-align:center; margin-top:6px; }
+
+/* ── REPORT CONTAINER ── */
+.report {
+  max-width: 820px; margin:0 auto;
+  padding: 48px 40px 80px;
+}
+
+/* ── REPORT HEADER ── */
+.report-header {
+  border-bottom: 3px solid var(--ink);
+  padding-bottom: 28px; margin-bottom: 36px;
+}
+.report-header-top {
+  display:flex; justify-content:space-between; align-items:flex-start;
+  margin-bottom:20px;
+}
+.brand-mark {
+  font-family:'DM Mono',monospace; font-size:10px; letter-spacing:3px;
+  color:var(--green); text-transform:uppercase; font-weight:500;
+}
+.report-meta {
+  font-family:'DM Mono',monospace; font-size:10px; color:var(--muted);
+  text-align:right; line-height:1.6;
+}
+.report-meta strong { color:var(--ink2); }
+.report-title {
+  font-family:'Playfair Display',serif; font-size:38px; font-weight:800;
+  color:var(--ink); line-height:1.15; margin-bottom:10px;
+}
+.report-subtitle {
+  font-size:15px; color:var(--muted); font-weight:300;
+}
+.report-tags {
+  display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;
+}
+.report-tag {
+  font-family:'DM Mono',monospace; font-size:9px; letter-spacing:2px;
+  text-transform:uppercase; padding:3px 10px; border-radius:20px;
+  border:1px solid var(--border); color:var(--muted);
+  background: white;
+}
+.report-tag.primary {
+  border-color:var(--green); color:var(--green); background:var(--green-lt);
+}
+
+/* ── EXECUTIVE SUMMARY ── */
+.exec-summary {
+  background:var(--ink); color:white;
+  border-radius:8px; padding:24px 28px; margin-bottom:36px;
+}
+.exec-label {
+  font-family:'DM Mono',monospace; font-size:9px; letter-spacing:3px;
+  text-transform:uppercase; color:#00e87a; margin-bottom:14px;
+}
+.exec-stats {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:20px;
+}
+.exec-stat-val {
+  font-size:32px; font-weight:800; color:#00e87a; line-height:1;
+}
+.exec-stat-lbl {
+  font-family:'DM Mono',monospace; font-size:9px; color:#5a8070;
+  margin-top:4px; letter-spacing:1px;
+}
+
+/* ── SECTION ── */
+.report-section {
+  margin-bottom: 40px;
+}
+.section-header {
+  display:flex; align-items:center; gap:12px;
+  padding-bottom:10px; border-bottom:1px solid var(--border);
+  margin-bottom:20px;
+}
+.section-num {
+  font-family:'DM Mono',monospace; font-size:10px; letter-spacing:2px;
+  color:var(--muted); text-transform:uppercase;
+}
+.section-title {
+  font-family:'Playfair Display',serif; font-size:22px; font-weight:700;
+  color:var(--ink);
+}
+
+/* Readiness section */
+.readiness-layout {
+  display:grid; grid-template-columns:160px 1fr; gap:28px; align-items:center;
+}
+.readiness-score-block { text-align:center; }
+.big-score {
+  font-size:72px; font-weight:800; line-height:1;
+  font-family:'Playfair Display',serif;
+}
+.score-label {
+  font-family:'DM Mono',monospace; font-size:10px; letter-spacing:2px;
+  color:var(--muted); margin-top:4px;
+}
+.tier-badge {
+  display:inline-block; margin-top:8px; padding:4px 14px;
+  border-radius:20px; font-family:'DM Mono',monospace; font-size:9px;
+  letter-spacing:2px; text-transform:uppercase;
+}
+.tier-high   { background:var(--green-lt); color:var(--green); border:1px solid var(--green); }
+.tier-medium { background:#fef3c7; color:var(--amber); border:1px solid var(--amber); }
+.tier-low    { background:#fde8e8; color:var(--red); border:1px solid var(--red); }
+
+.bar-row { margin-bottom:12px; }
+.bar-label-row { display:flex; justify-content:space-between; font-size:12px; color:var(--ink2); margin-bottom:4px; }
+.bar-label-row span { font-family:'DM Mono',monospace; font-weight:500; }
+.bar-track { height:8px; background:var(--border); border-radius:4px; overflow:hidden; }
+.bar-fill { height:100%; border-radius:4px; }
+
+/* Corridor table */
+.data-table { width:100%; border-collapse:collapse; font-size:13px; }
+.data-table thead tr { background:var(--ink); }
+.data-table th {
+  font-family:'DM Mono',monospace; font-size:8px; letter-spacing:2px;
+  text-transform:uppercase; color:white; padding:10px 12px; text-align:left;
+}
+.data-table td { padding:11px 12px; border-bottom:1px solid var(--border); }
+.data-table tr:nth-child(even) td { background:#f4fbf7; }
+.data-table tr:last-child td { border-bottom:none; }
+.gap-pill {
+  display:inline-block; font-family:'DM Mono',monospace; font-size:10px;
+  padding:3px 10px; border-radius:20px; font-weight:500;
+}
+.pill-red    { background:#fde8e8; color:var(--red); }
+.pill-amber  { background:#fef3c7; color:var(--amber); }
+.pill-green  { background:var(--green-lt); color:var(--green); }
+.corridor-name { font-weight:700; color:var(--ink); }
+
+/* Funding section */
+.funder-row {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:13px 0; border-bottom:1px solid var(--border); gap:12px;
+}
+.funder-row:last-child { border-bottom:none; }
+.funder-name { font-weight:700; font-size:14px; }
+.funder-focus { font-size:12px; color:var(--muted); margin-top:2px; }
+.funder-amount { font-family:'DM Mono',monospace; font-size:16px; color:var(--gold); font-weight:500; }
+.match-badge {
+  font-family:'DM Mono',monospace; font-size:8px; letter-spacing:2px;
+  text-transform:uppercase; padding:3px 8px; border-radius:3px;
+}
+.match-high   { background:var(--green-lt); color:var(--green); }
+.match-medium { background:#fef3c7; color:var(--amber); }
+
+/* ROI section */
+.roi-grid {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:16px;
+}
+.roi-card {
+  background:white; border:1px solid var(--border);
+  border-radius:6px; padding:16px;
+  border-top:3px solid var(--green);
+}
+.roi-val { font-size:30px; font-weight:700; color:var(--ink); font-family:'Playfair Display',serif; }
+.roi-lbl { font-family:'DM Mono',monospace; font-size:9px; letter-spacing:2px; color:var(--muted); margin-top:4px; }
+
+/* Fleet section */
+.route-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:10px 0; border-bottom:1px solid var(--border); font-size:13px;
+}
+.route-row:last-child { border-bottom:none; }
+
+/* Priority ranking */
+.priority-row {
+  display:flex; align-items:center; gap:14px;
+  padding:10px 0; border-bottom:1px solid var(--border);
+}
+.priority-row:last-child { border-bottom:none; }
+.priority-num {
+  font-family:'Playfair Display',serif; font-size:28px; font-weight:800;
+  color:var(--border); width:32px; flex-shrink:0; text-align:right;
+}
+.priority-gap {
+  font-family:'DM Mono',monospace; font-size:22px; font-weight:500; flex-shrink:0; width:42px;
+}
+
+/* ── FOOTER ── */
+.report-footer {
+  margin-top:48px; padding-top:20px;
+  border-top:1px solid var(--border);
+  display:flex; justify-content:space-between; align-items:center;
+}
+.footer-brand { font-family:'DM Mono',monospace; font-size:10px; color:var(--muted); }
+.footer-brand strong { color:var(--ink2); }
+.footer-disclaimer {
+  font-size:11px; color:var(--muted); max-width:360px; text-align:right; line-height:1.5;
+}
+
+/* ── PRINT ── */
+@media print {
+  .toolbar { display:none !important; }
+  body { background:white; }
+  .report { padding:32px 28px; max-width:100%; }
+  .exec-summary { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .data-table thead tr { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .report-section { page-break-inside:avoid; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR (hidden on print) -->
+<div class="toolbar">
+  <div class="toolbar-left">
+    <div class="tb-logo">⚡ ChargeSmart</div>
+    <div class="tb-title" id="tb-title">Loading report…</div>
+  </div>
+  <div class="toolbar-right">
+    <div class="share-wrap">
+      <button class="tb-btn tb-btn-outline" onclick="toggleShare()">⬡ Share Link</button>
+      <div class="share-popup" id="share-popup">
+        <div class="share-url" id="share-url-text"></div>
+        <button class="share-copy" onclick="copyLink()">Copy Link</button>
+        <div class="copied-msg" id="copied-msg">✓ Copied to clipboard</div>
+      </div>
+    </div>
+    <button class="tb-btn tb-btn-outline" onclick="window.print()">🖨 Print / PDF</button>
+    <a href="/report-builder" style="text-decoration:none">
+      <button class="tb-btn tb-btn-primary">+ New Report</button>
+    </a>
+  </div>
+</div>
+
+<!-- REPORT -->
+<div class="report" id="report-body">
+  <div style="text-align:center;padding:80px;color:#aaa;font-family:'DM Mono',monospace;font-size:12px">
+    Loading report…
+  </div>
+</div>
+
+<script>
+// ── DATA (same as builder) ────────────────────────────────────
+const COUNTRIES = {
+  KE:{ flag:'🇰🇪', name:'Kenya',        score:74.1, tier:'HIGH',   renewable:90, policy:72, grid:58, tariff:25, costMult:0.75 },
+  ET:{ flag:'🇪🇹', name:'Ethiopia',     score:66.2, tier:'MEDIUM', renewable:98, policy:85, grid:45, tariff:0,  costMult:0.70 },
+  RW:{ flag:'🇷🇼', name:'Rwanda',       score:68.5, tier:'MEDIUM', renewable:55, policy:80, grid:62, tariff:10, costMult:0.80 },
+  ZA:{ flag:'🇿🇦', name:'South Africa', score:51.8, tier:'MEDIUM', renewable:12, policy:45, grid:40, tariff:18, costMult:0.85 },
+  NG:{ flag:'🇳🇬', name:'Nigeria',      score:32.5, tier:'LOW',    renewable:18, policy:35, grid:28, tariff:35, costMult:0.72 },
+  AE:{ flag:'🇦🇪', name:'UAE',          score:87.5, tier:'HIGH',   renewable:8,  policy:88, grid:95, tariff:5,  costMult:1.10 },
+};
+const CORRIDORS = {
+  KE:[
+    { name:'Nairobi → Mombasa',  km:480, existing:4,  needed:12, gap:94,  priority:'CRITICAL' },
+    { name:'Nairobi → Kisumu',   km:350, existing:1,  needed:9,  gap:91,  priority:'CRITICAL' },
+    { name:'Mombasa → Malindi',  km:120, existing:0,  needed:3,  gap:100, priority:'CRITICAL' },
+    { name:'Nairobi → Nakuru',   km:156, existing:2,  needed:4,  gap:72,  priority:'HIGH'     },
+  ],
+  ET:[
+    { name:'Addis → Dire Dawa', km:515, existing:1, needed:13, gap:96,  priority:'CRITICAL' },
+    { name:'Addis → Hawassa',   km:275, existing:0, needed:7,  gap:100, priority:'CRITICAL' },
+    { name:'Addis → Bahir Dar', km:560, existing:0, needed:14, gap:100, priority:'CRITICAL' },
+    { name:'Addis → Adama',     km:100, existing:3, needed:4,  gap:35,  priority:'MEDIUM'   },
+  ],
+  RW:[
+    { name:'Kigali → Musanze', km:110, existing:1, needed:3, gap:82,  priority:'CRITICAL' },
+    { name:'Kigali → Huye',    km:130, existing:0, needed:3, gap:100, priority:'CRITICAL' },
+    { name:'Kigali → Rubavu',  km:160, existing:1, needed:4, gap:88,  priority:'CRITICAL' },
+  ],
+  ZA:[
+    { name:'Joburg → Cape Town',       km:1400, existing:18, needed:35, gap:58, priority:'HIGH'     },
+    { name:'Joburg → Durban',          km:620,  existing:8,  needed:16, gap:65, priority:'HIGH'     },
+    { name:'Cape Town → Garden Route', km:420,  existing:6,  needed:11, gap:55, priority:'HIGH'     },
+    { name:'Pretoria → Polokwane',     km:300,  existing:2,  needed:8,  gap:78, priority:'CRITICAL' },
+  ],
+  NG:[
+    { name:'Lagos → Abuja',  km:780, existing:1, needed:20, gap:98,  priority:'CRITICAL' },
+    { name:'Lagos → Ibadan', km:130, existing:2, needed:4,  gap:72,  priority:'HIGH'     },
+    { name:'Abuja → Kano',   km:350, existing:0, needed:9,  gap:100, priority:'CRITICAL' },
+  ],
+  AE:[
+    { name:'Dubai → Abu Dhabi',  km:140, existing:28, needed:30, gap:8,  priority:'LOW'    },
+    { name:'Abu Dhabi → Al Ain', km:160, existing:8,  needed:10, gap:32, priority:'MEDIUM' },
+    { name:'Dubai → Fujairah',   km:130, existing:3,  needed:5,  gap:55, priority:'HIGH'   },
+  ],
+};
+const FUNDING = {
+  KE:[
+    { name:'World Bank ESMAP',  amount:'$50M+', focus:'Clean Energy Infrastructure', match:'HIGH'   },
+    { name:'African Dev. Bank', amount:'$30M+', focus:'GET-FiT Clean Transport',      match:'HIGH'   },
+    { name:'Green Climate Fund',amount:'$20M+', focus:'Low-carbon transport systems', match:'HIGH'   },
+    { name:'USAID Power Africa',amount:'$10M+', focus:'Energy access & clean mobility',match:'MEDIUM'},
+    { name:'UK BII / MOBILIST', amount:'$15M+', focus:'Blended finance infrastructure',match:'MEDIUM'},
+  ],
+  ET:[
+    { name:'World Bank IDA',    amount:'$100M+',focus:'Infrastructure & energy',     match:'HIGH' },
+    { name:'African Dev. Bank', amount:'$40M+', focus:'Transport electrification',   match:'HIGH' },
+    { name:'Green Climate Fund',amount:'$25M+', focus:'Low-carbon mobility',         match:'HIGH' },
+    { name:'USAID Power Africa',amount:'$15M+', focus:'Energy access',              match:'HIGH' },
+  ],
+  RW:[
+    { name:'World Bank ESMAP', amount:'$20M+',focus:'Clean Energy Infrastructure', match:'HIGH'   },
+    { name:'African Dev. Bank',amount:'$15M+',focus:'GET-FiT East Africa',         match:'HIGH'   },
+    { name:'EU Global Gateway',amount:'$10M+',focus:'Green infrastructure',        match:'HIGH'   },
+    { name:'Green Climate Fund',amount:'$8M+',focus:'Climate transport',           match:'MEDIUM' },
+  ],
+  ZA:[
+    { name:'DBSA',             amount:'$50M+',focus:'National infrastructure',     match:'HIGH'   },
+    { name:'IDC South Africa', amount:'$30M+',focus:'Industrial development',      match:'HIGH'   },
+    { name:'World Bank ESMAP', amount:'$25M+',focus:'Energy transition',           match:'MEDIUM' },
+    { name:'EU Just Transition',amount:'$20M+',focus:'Coal-to-clean transition',   match:'MEDIUM' },
+  ],
+  NG:[
+    { name:'World Bank Nigeria',amount:'$80M+',   focus:'Infrastructure & energy',   match:'HIGH'   },
+    { name:'African Dev. Bank', amount:'$40M+',   focus:'Transport & mobility',      match:'HIGH'   },
+    { name:'USAID Power Africa',amount:'$20M+',   focus:'Energy access',            match:'MEDIUM' },
+    { name:'IFC Private Sector',amount:'Variable',focus:'Private infrastructure',   match:'MEDIUM' },
+  ],
+  AE:[
+    { name:'Abu Dhabi Investment',amount:'$500M+',focus:'National EV infrastructure',match:'HIGH' },
+    { name:'DEWA (Dubai Energy)', amount:'$200M+',focus:'Smart mobility',            match:'HIGH' },
+    { name:'Masdar / Mubadala',   amount:'$100M+',focus:'Clean energy transition',  match:'HIGH' },
+  ],
+};
+
+// ── PARSE REPORT DATA ─────────────────────────────────────────
+function parseReportData() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const encoded = params.get('data');
+    if (!encoded) return null;
+    return JSON.parse(atob(encoded));
+  } catch(e) { return null; }
+}
+
+// ── RENDER ────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  const data = parseReportData();
+
+  if (!data) {
+    document.getElementById('report-body').innerHTML = `
+      <div style="text-align:center;padding:80px;font-family:'DM Mono',monospace">
+        <div style="font-size:32px;margin-bottom:16px">⚠️</div>
+        <div style="color:#666;margin-bottom:20px">No report data found.</div>
+        <a href="/report-builder" style="color:var(--green);font-size:14px">← Back to Report Builder</a>
+      </div>`;
+    return;
+  }
+
+  const c   = COUNTRIES[data.country];
+  const cors = CORRIDORS[data.country] || [];
+  const fund = FUNDING[data.country]   || [];
+  const secs  = new Set(data.sections);
+  const genDate = new Date(data.generated);
+  const dateStr = genDate.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  const timeStr = genDate.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+
+  // Toolbar title
+  document.title = data.title;
+  document.getElementById('tb-title').textContent = data.title;
+  document.getElementById('share-url-text').textContent = window.location.href;
+
+  // Compute summary stats
+  const totalNeeded = cors.reduce((s,r)=>s+r.needed,0);
+  const topGap = cors.reduce((a,b)=>a.gap>b.gap?a:b, cors[0]);
+  const budget = 1000000;
+  const costPer = 8000 * c.costMult;
+  const chargers = Math.floor(budget/costPer);
+  const jobs = chargers * 2;
+
+  // Score color
+  const scoreColor = c.score>=70?'var(--green)':c.score>=50?'var(--amber)':'var(--red)';
+  const tierClass  = c.tier==='HIGH'?'tier-high':c.tier==='MEDIUM'?'tier-medium':'tier-low';
+
+  let html = `
+  <!-- REPORT HEADER -->
+  <div class="report-header">
+    <div class="report-header-top">
+      <div class="brand-mark">⚡ ChargeSmart Intelligence</div>
+      <div class="report-meta">
+        Generated: <strong>${dateStr} at ${timeStr}</strong><br>
+        Country: <strong>${c.flag} ${c.name}</strong><br>
+        Sections: <strong>${data.sections.length} selected</strong>
+      </div>
+    </div>
+    <h1 class="report-title">${data.title}</h1>
+    <div class="report-subtitle">EV Infrastructure Intelligence Report · Powered by ChargeSmart Data Platform</div>
+    <div class="report-tags">
+      <span class="report-tag primary">${c.flag} ${c.name}</span>
+      ${data.sections.map(s=>`<span class="report-tag">${s.replace('_',' ')}</span>`).join('')}
+      <span class="report-tag">${dateStr}</span>
+    </div>
+  </div>
+
+  <!-- EXECUTIVE SUMMARY -->
+  <div class="exec-summary">
+    <div class="exec-label">Executive Summary</div>
+    <div class="exec-stats">
+      <div>
+        <div class="exec-stat-val">${c.score}</div>
+        <div class="exec-stat-lbl">Readiness Score</div>
+      </div>
+      <div>
+        <div class="exec-stat-val">${topGap.gap}/100</div>
+        <div class="exec-stat-lbl">Primary Gap</div>
+      </div>
+      <div>
+        <div class="exec-stat-val">${totalNeeded}</div>
+        <div class="exec-stat-lbl">Chargers Needed</div>
+      </div>
+      <div>
+        <div class="exec-stat-val">${c.renewable}%</div>
+        <div class="exec-stat-lbl">Renewable Grid</div>
+      </div>
+    </div>
+  </div>`;
+
+  let secNum = 0;
+
+  // ── EV READINESS ──
+  if (secs.has('ev_readiness')) {
+    secNum++;
+    const bars = [
+      { l:'Renewable Energy',  v:c.renewable, color:c.renewable>60?'#00824a':'#d97706' },
+      { l:'Policy Strength',   v:c.policy,    color:c.policy>60?'#00824a':'#d97706'    },
+      { l:'Grid Reliability',  v:c.grid,      color:c.grid>60?'#00824a':'#d97706'      },
+      { l:'Import Conditions', v:Math.max(0,100-c.tariff*2), color:c.tariff<15?'#00824a':'#d97706' },
+    ];
+    html += `
+    <div class="report-section">
+      <div class="section-header">
+        <div class="section-num">Section ${String(secNum).padStart(2,'0')}</div>
+        <div class="section-title">EV Readiness Assessment</div>
+      </div>
+      <div class="readiness-layout">
+        <div class="readiness-score-block">
+          <div class="big-score" style="color:${scoreColor}">${c.score}</div>
+          <div class="score-label">OUT OF 100</div>
+          <div class="tier-badge ${tierClass}">${c.tier} TIER</div>
+        </div>
+        <div>
+          ${bars.map(b=>`
+          <div class="bar-row">
+            <div class="bar-label-row">${b.l}<span style="color:${b.color}">${b.v}</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:${b.v}%;background:${b.color}"></div></div>
+          </div>`).join('')}
+          <p style="font-size:12px;color:var(--muted);margin-top:14px;line-height:1.6">
+            ${c.name} scores <strong style="color:var(--ink)">${c.score}/100</strong> on the ChargeSmart EV Readiness Index.
+            With <strong style="color:var(--green)">${c.renewable}% renewable energy</strong>, the grid is well-positioned for
+            mass EV adoption. The primary constraint is grid reliability at ${c.grid}/100 and import tariffs at ${c.tariff}%.
+          </p>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── CORRIDOR ANALYSIS ──
+  if (secs.has('corridor')) {
+    secNum++;
+    const totalDef = cors.reduce((s,r)=>s+(r.needed-r.existing),0);
+    html += `
+    <div class="report-section">
+      <div class="section-header">
+        <div class="section-num">Section ${String(secNum).padStart(2,'0')}</div>
+        <div class="section-title">Corridor Gap Analysis</div>
+      </div>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.6">
+        ChargeSmart has mapped <strong style="color:var(--ink)">${cors.length} priority corridors</strong> in ${c.name}.
+        The analysis identifies a total deficit of <strong style="color:var(--red)">${totalDef} charging units</strong>
+        across all corridors. The primary gap is on the <strong style="color:var(--ink)">${topGap.name}</strong>
+        corridor with a gap score of ${topGap.gap}/100.
+      </p>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Corridor</th>
+            <th>Distance</th>
+            <th>Existing</th>
+            <th>Needed</th>
+            <th>Deficit</th>
+            <th>Gap Score</th>
+            <th>Priority</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${cors.map(r=>{
+            const gc = r.gap>=90?'pill-red':r.gap>=70?'pill-amber':'pill-green';
+            const pc = r.priority==='CRITICAL'?'pill-red':r.priority==='HIGH'?'pill-amber':'pill-green';
+            return `<tr>
+              <td><span class="corridor-name">${r.name}</span></td>
+              <td style="font-family:'DM Mono',monospace">${r.km}km</td>
+              <td style="text-align:center">${r.existing}</td>
+              <td style="text-align:center;font-weight:700">${r.needed}</td>
+              <td style="text-align:center;font-weight:700;color:var(--red)">+${r.needed-r.existing}</td>
+              <td><span class="gap-pill ${gc}">${r.gap}/100</span></td>
+              <td><span class="gap-pill ${pc}">${r.priority}</span></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  }
+
+  // ── FUNDING ROI ──
+  if (secs.has('funding_roi')) {
+    secNum++;
+    html += `
+    <div class="report-section">
+      <div class="section-header">
+        <div class="section-num">Section ${String(secNum).padStart(2,'0')}</div>
+        <div class="section-title">Available Funding Sources</div>
+      </div>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.6">
+        ${c.name}'s EV infrastructure programme qualifies for multiple international climate finance instruments.
+        The following sources have been identified with a match assessment based on programme eligibility criteria.
+      </p>
+      ${fund.map(f=>`
+      <div class="funder-row">
+        <div>
+          <div class="funder-name">${f.name}</div>
+          <div class="funder-focus">${f.focus}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="funder-amount">${f.amount}</div>
+          <span class="match-badge match-${f.match.toLowerCase()}">${f.match} MATCH</span>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  // ── BUSINESS ROI ──
+  if (secs.has('biz_roi')) {
+    secNum++;
+    const rev  = Math.round(chargers*22*0.6*365*0.15);
+    const co2  = Math.round(chargers*22*0.8*365*0.00021);
+    const payb = (budget/rev).toFixed(1);
+    html += `
+    <div class="report-section">
+      <div class="section-header">
+        <div class="section-num">Section ${String(secNum).padStart(2,'0')}</div>
+        <div class="section-title">Investment ROI Analysis</div>
+      </div>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.6">
+        Based on a reference investment of <strong style="color:var(--ink)">$1,000,000</strong> in ${c.name},
+        using 22kW AC fast chargers with a local cost multiplier of ${c.costMult}x applied.
+      </p>
+      <div class="roi-grid">
+        <div class="roi-card">
+          <div class="roi-val">${chargers}</div>
+          <div class="roi-lbl">Chargers Deployed</div>
+        </div>
+        <div class="roi-card">
+          <div class="roi-val">${(chargers*18).toLocaleString()}</div>
+          <div class="roi-lbl">Vehicles / Day</div>
+        </div>
+        <div class="roi-card">
+          <div class="roi-val">${co2}t</div>
+          <div class="roi-lbl">CO₂ Saved / Year</div>
+        </div>
+        <div class="roi-card">
+          <div class="roi-val">${(chargers*2).toLocaleString()}</div>
+          <div class="roi-lbl">Jobs Created</div>
+        </div>
+        <div class="roi-card">
+          <div class="roi-val" style="color:var(--amber)">${payb}yr</div>
+          <div class="roi-lbl">Payback Period</div>
+        </div>
+        <div class="roi-card">
+          <div class="roi-val" style="color:var(--green)">$${Math.round(rev/1000)}K</div>
+          <div class="roi-lbl">Annual Revenue</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── FLEET ROUTE COVERAGE ──
+  if (secs.has('fleet_route')) {
+    secNum++;
+    html += `
+    <div class="report-section">
+      <div class="section-header">
+        <div class="section-num">Section ${String(secNum).padStart(2,'0')}</div>
+        <div class="section-title">Fleet Route Coverage</div>
+      </div>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.6">
+        Route serviceability assessment for ${c.name}. A route is considered serviceable
+        if charging gaps do not exceed the standard EV range threshold of 150km.
+      </p>
+      ${cors.map(r=>{
+        const ok = r.gap < 50;
+        return `<div class="route-row">
+          <div>
+            <div style="font-weight:600">${r.name}</div>
+            <div style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace">${r.km}km · ${r.existing} charger${r.existing!==1?'s':''} currently</div>
+          </div>
+          <span class="gap-pill ${ok?'pill-green':'pill-red'}">${ok?'✓ SERVICEABLE':'✗ COVERAGE GAP'}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  // ── INVESTMENT PRIORITY ──
+  if (secs.has('corridor_prio')) {
+    secNum++;
+    const sorted = [...cors].sort((a,b)=>b.gap-a.gap);
+    html += `
+    <div class="report-section">
+      <div class="section-header">
+        <div class="section-num">Section ${String(secNum).padStart(2,'0')}</div>
+        <div class="section-title">Investment Priority Ranking</div>
+      </div>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.6">
+        Corridors ranked by infrastructure urgency score. Score is a composite of gap severity,
+        traffic volume, corridor strategic importance, and alternative route availability.
+      </p>
+      ${sorted.map((r,i)=>{
+        const gc = r.gap>=90?'var(--red)':r.gap>=70?'var(--amber)':'var(--green)';
+        return `<div class="priority-row">
+          <div class="priority-num">${i+1}</div>
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:14px">${r.name}</div>
+            <div style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px">
+              ${r.km}km · +${r.needed-r.existing} chargers needed · ${r.priority}
+            </div>
+          </div>
+          <div class="priority-gap" style="color:${gc}">${r.gap}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  // ── REPORT FOOTER ──
+  html += `
+  <div class="report-footer">
+    <div class="footer-brand">
+      <strong>ChargeSmart</strong> Intelligence Platform<br>
+      chargesmart.online · hello@chargesmart.online<br>
+      Data: 8.5M records · 30 countries · ${dateStr}
+    </div>
+    <div class="footer-disclaimer">
+      This report was generated using ChargeSmart's proprietary EV infrastructure dataset.
+      Data is indicative and intended for planning purposes. For commercial licensing contact hello@chargesmart.online.
+    </div>
+  </div>`;
+
+  document.getElementById('report-body').innerHTML = html;
+});
+
+// ── SHARE ─────────────────────────────────────────────────────
+function toggleShare() {
+  document.getElementById('share-popup').classList.toggle('open');
+}
+function copyLink() {
+  navigator.clipboard.writeText(window.location.href).then(()=>{
+    document.getElementById('copied-msg').style.display = 'block';
+    setTimeout(()=>{ document.getElementById('copied-msg').style.display='none'; }, 2000);
+  });
+}
+document.addEventListener('click', e=>{
+  if (!e.target.closest('.share-wrap')) {
+    document.getElementById('share-popup').classList.remove('open');
+  }
+});
+</script>
+</body>
+</html>

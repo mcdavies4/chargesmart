@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChargeSmart — Report Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #040d0a;
+  --surface: #070f0c;
+  --card:    #0c1f19;
+  --border:  #1a3d30;
+  --green:   #00e87a;
+  --green2:  #00b85e;
+  --dim:     #00e87a18;
+  --gold:    #f5c842;
+  --red:     #ff4d4d;
+  --amber:   #ffaa00;
+  --text:    #e8f5f0;
+  --muted:   #4a7060;
+  --locked:  #1e2e28;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Syne', sans-serif; min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background-image: linear-gradient(var(--border) 1px, transparent 1px),
+                    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 48px 48px; opacity: 0.12;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  position:sticky; top:0; z-index:100;
+  background: rgba(4,13,10,0.96); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  height: 54px; padding: 0 28px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.logo { display:flex; align-items:center; gap:8px;
+  font-family:'DM Mono',monospace; font-size:12px; font-weight:500;
+  letter-spacing:3px; color:var(--green); text-transform:uppercase;
+  text-decoration:none;
+}
+.logo-dot {
+  width:7px; height:7px; border-radius:50%; background:var(--green);
+  box-shadow:0 0 8px var(--green); animation: blink 2s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.topbar-center {
+  font-family:'DM Mono',monospace; font-size:10px;
+  letter-spacing:3px; color:var(--muted); text-transform:uppercase;
+}
+.topbar-center span { color:var(--green); }
+.back-btn {
+  font-family:'DM Mono',monospace; font-size:10px; letter-spacing:2px;
+  color:var(--muted); text-decoration:none; text-transform:uppercase;
+  padding:6px 14px; border:1px solid var(--border); border-radius:4px;
+  transition:all 0.2s;
+}
+.back-btn:hover { color:var(--text); border-color:var(--muted); }
+
+/* ── LAYOUT ── */
+.builder-layout {
+  position:relative; z-index:1;
+  display:grid; grid-template-columns: 420px 1fr;
+  min-height: calc(100vh - 54px);
+}
+
+/* ── LEFT PANEL ── */
+.left-panel {
+  border-right: 1px solid var(--border);
+  padding: 28px 24px; overflow-y: auto;
+  background: var(--surface);
+  display:flex; flex-direction:column; gap:24px;
+}
+
+.section-label {
+  font-family:'DM Mono',monospace; font-size:9px;
+  letter-spacing:3px; text-transform:uppercase; color:var(--green);
+  margin-bottom:12px; display:flex; align-items:center; gap:8px;
+}
+.section-label::after { content:''; flex:1; height:1px; background:var(--border); }
+
+/* Country grid */
+.country-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:8px;
+}
+.country-btn {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:6px; padding:10px 12px; cursor:pointer;
+  transition:all 0.2s; text-align:left;
+}
+.country-btn:hover { border-color:var(--green2); }
+.country-btn.active {
+  background:var(--dim); border-color:var(--green);
+  box-shadow:0 0 12px #00e87a15;
+}
+.country-flag { font-size:20px; display:block; margin-bottom:4px; }
+.country-name { font-size:12px; font-weight:700; color:var(--text); }
+.country-score {
+  font-family:'DM Mono',monospace; font-size:10px;
+  color:var(--muted); margin-top:1px;
+}
+.country-btn.active .country-score { color:var(--green); }
+
+/* Endpoint list */
+.endpoint-list { display:flex; flex-direction:column; gap:8px; }
+.endpoint-item {
+  border:1px solid var(--border); border-radius:6px;
+  padding:12px 14px; cursor:pointer; transition:all 0.2s;
+  position:relative; user-select:none;
+}
+.endpoint-item:not(.locked):hover { border-color:var(--green2); background:#ffffff04; }
+.endpoint-item.selected {
+  border-color:var(--green); background:var(--dim);
+}
+.endpoint-item.locked {
+  opacity:0.5; cursor:not-allowed; background:var(--locked);
+}
+.ep-header { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.ep-name {
+  font-family:'DM Mono',monospace; font-size:11px; font-weight:500;
+  color:var(--green); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.endpoint-item.locked .ep-name { color:var(--muted); }
+.ep-check {
+  width:18px; height:18px; border-radius:4px;
+  border:1px solid var(--border); flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; transition:all 0.15s;
+}
+.endpoint-item.selected .ep-check {
+  background:var(--green); border-color:var(--green); color:#040d0a;
+}
+.ep-desc { font-size:11px; color:var(--muted); margin-top:4px; line-height:1.4; }
+.ep-tier {
+  font-family:'DM Mono',monospace; font-size:8px; letter-spacing:1px;
+  padding:2px 7px; border-radius:10px; text-transform:uppercase; flex-shrink:0;
+}
+.tier-free     { color:#4a7060; background:#0c1f19; border:1px solid #1a3d30; }
+.tier-dev      { color:var(--green); background:#00e87a10; border:1px solid #00e87a33; }
+.tier-business { color:var(--gold); background:#f5c84210; border:1px solid #f5c84233; }
+.lock-icon { font-size:12px; }
+
+/* Report title */
+.report-title-input {
+  width:100%; background:var(--card); border:1px solid var(--border);
+  border-radius:6px; padding:10px 14px; color:var(--text);
+  font-family:'Syne',sans-serif; font-size:13px; outline:none;
+  transition:border-color 0.2s;
+}
+.report-title-input:focus { border-color:var(--green); }
+.report-title-input::placeholder { color:var(--muted); }
+
+/* Generate button */
+.generate-btn {
+  width:100%; padding:14px; border-radius:6px;
+  background:var(--green); border:none; color:#040d0a;
+  font-family:'Syne',sans-serif; font-size:14px; font-weight:800;
+  letter-spacing:2px; text-transform:uppercase; cursor:pointer;
+  transition:all 0.2s; position:relative; overflow:hidden;
+}
+.generate-btn:hover { box-shadow:0 0 28px #00e87a55; transform:translateY(-1px); }
+.generate-btn:disabled {
+  background:var(--border); color:var(--muted); cursor:not-allowed;
+  transform:none; box-shadow:none;
+}
+.generate-btn .btn-sub {
+  display:block; font-size:9px; font-weight:400;
+  letter-spacing:3px; opacity:0.7; margin-top:2px;
+  font-family:'DM Mono',monospace;
+}
+
+.selection-count {
+  font-family:'DM Mono',monospace; font-size:10px;
+  color:var(--muted); text-align:center; margin-top:-12px;
+}
+.selection-count span { color:var(--green); }
+
+/* ── RIGHT PANEL — PREVIEW ── */
+.right-panel {
+  padding: 28px 32px; overflow-y:auto;
+  display:flex; flex-direction:column; gap:20px;
+}
+.preview-header {
+  display:flex; align-items:center; justify-content:space-between;
+}
+.preview-title {
+  font-size:13px; font-weight:700; color:var(--text);
+}
+.preview-title span { color:var(--muted); font-weight:400; font-size:11px; }
+.live-badge {
+  font-family:'DM Mono',monospace; font-size:9px; letter-spacing:2px;
+  color:var(--green); background:var(--dim);
+  border:1px solid #00e87a33; border-radius:10px; padding:3px 10px;
+  text-transform:uppercase;
+}
+
+.empty-state {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:16px;
+  color:var(--muted); text-align:center; padding:60px 20px;
+}
+.empty-icon { font-size:48px; opacity:0.3; }
+.empty-text { font-size:13px; line-height:1.6; max-width:280px; }
+
+/* Preview cards */
+.preview-cards { display:flex; flex-direction:column; gap:16px; }
+.preview-card {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:8px; padding:20px; position:relative; overflow:hidden;
+  animation: fadeIn 0.4s ease both;
+}
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+.preview-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  background:var(--card-accent, var(--green));
+}
+.preview-card-title {
+  font-family:'DM Mono',monospace; font-size:9px; letter-spacing:3px;
+  text-transform:uppercase; color:var(--green); margin-bottom:14px;
+}
+.preview-stats {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:10px;
+}
+.preview-stat-val {
+  font-size:28px; font-weight:800; color:var(--text); line-height:1;
+}
+.preview-stat-lbl {
+  font-size:10px; color:var(--muted); margin-top:3px;
+  font-family:'DM Mono',monospace;
+}
+.mini-table { width:100%; border-collapse:collapse; font-size:11px; }
+.mini-table th {
+  font-family:'DM Mono',monospace; font-size:8px; letter-spacing:2px;
+  text-transform:uppercase; color:var(--muted); padding:5px 8px;
+  text-align:left; border-bottom:1px solid var(--border);
+}
+.mini-table td {
+  padding:8px; border-bottom:1px solid #ffffff08; color:var(--text);
+}
+.mini-pill {
+  font-size:9px; padding:2px 7px; border-radius:10px;
+  font-family:'DM Mono',monospace;
+}
+.pill-red   { background:#ff4d4d18; color:var(--red); border:1px solid #ff4d4d33; }
+.pill-amber { background:#ffaa0018; color:var(--amber); border:1px solid #ffaa0033; }
+.pill-green { background:#00e87a18; color:var(--green); border:1px solid #00e87a33; }
+.mini-bar-track {
+  height:5px; background:var(--border); border-radius:3px; margin-top:2px;
+}
+.mini-bar-fill { height:100%; border-radius:3px; }
+
+/* Responsive */
+@media(max-width:900px){
+  .builder-layout { grid-template-columns:1fr; }
+  .right-panel { display:none; }
+}
+</style>
+</head>
+<body>
+
+<nav class="topbar">
+  <a href="/" class="logo"><div class="logo-dot"></div>ChargeSmart</a>
+  <div class="topbar-center">Report <span>Builder</span></div>
+  <a href="/dashboard" class="back-btn">← Dashboard</a>
+</nav>
+
+<div class="builder-layout">
+
+  <!-- LEFT: BUILDER CONTROLS -->
+  <div class="left-panel">
+
+    <!-- 1. Country -->
+    <div>
+      <div class="section-label">01 · Select Country</div>
+      <div class="country-grid" id="country-grid"></div>
+    </div>
+
+    <!-- 2. Report title -->
+    <div>
+      <div class="section-label">02 · Report Title</div>
+      <input class="report-title-input" id="report-title"
+        placeholder="e.g. Kenya EV Infrastructure Report — Q1 2026"
+        oninput="updatePreviewTitle()">
+    </div>
+
+    <!-- 3. Endpoints -->
+    <div>
+      <div class="section-label">03 · Select Data Sections</div>
+      <div class="endpoint-list" id="endpoint-list"></div>
+    </div>
+
+    <!-- 4. Generate -->
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="generate-btn" id="generate-btn" onclick="generateReport()" disabled>
+        Generate Report
+        <span class="btn-sub">// creates shareable link + print view</span>
+      </button>
+      <div class="selection-count" id="sel-count">Select at least 1 section to generate</div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT: LIVE PREVIEW -->
+  <div class="right-panel" id="right-panel">
+    <div class="preview-header">
+      <div class="preview-title">Live Preview <span>— updates as you select</span></div>
+      <div class="live-badge">● LIVE</div>
+    </div>
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">📋</div>
+      <div class="empty-text">Select a country and at least one data section to see your report preview</div>
+    </div>
+    <div class="preview-cards" id="preview-cards" style="display:none"></div>
+  </div>
+
+</div>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────
+const COUNTRIES = {
+  KE:{ flag:'🇰🇪', name:'Kenya',        score:74.1, tier:'HIGH',   renewable:90, policy:72, grid:58, tariff:25, costMult:0.75 },
+  ET:{ flag:'🇪🇹', name:'Ethiopia',     score:66.2, tier:'MEDIUM', renewable:98, policy:85, grid:45, tariff:0,  costMult:0.70 },
+  RW:{ flag:'🇷🇼', name:'Rwanda',       score:68.5, tier:'MEDIUM', renewable:55, policy:80, grid:62, tariff:10, costMult:0.80 },
+  ZA:{ flag:'🇿🇦', name:'South Africa', score:51.8, tier:'MEDIUM', renewable:12, policy:45, grid:40, tariff:18, costMult:0.85 },
+  NG:{ flag:'🇳🇬', name:'Nigeria',      score:32.5, tier:'LOW',    renewable:18, policy:35, grid:28, tariff:35, costMult:0.72 },
+  AE:{ flag:'🇦🇪', name:'UAE',          score:87.5, tier:'HIGH',   renewable:8,  policy:88, grid:95, tariff:5,  costMult:1.10 },
+};
+
+const CORRIDORS = {
+  KE:[
+    { name:'Nairobi → Mombasa',  km:480, existing:4,  needed:12, gap:94,  priority:'CRITICAL' },
+    { name:'Nairobi → Kisumu',   km:350, existing:1,  needed:9,  gap:91,  priority:'CRITICAL' },
+    { name:'Mombasa → Malindi',  km:120, existing:0,  needed:3,  gap:100, priority:'CRITICAL' },
+    { name:'Nairobi → Nakuru',   km:156, existing:2,  needed:4,  gap:72,  priority:'HIGH' },
+  ],
+  ET:[
+    { name:'Addis → Dire Dawa',  km:515, existing:1,  needed:13, gap:96,  priority:'CRITICAL' },
+    { name:'Addis → Hawassa',    km:275, existing:0,  needed:7,  gap:100, priority:'CRITICAL' },
+    { name:'Addis → Bahir Dar',  km:560, existing:0,  needed:14, gap:100, priority:'CRITICAL' },
+    { name:'Addis → Adama',      km:100, existing:3,  needed:4,  gap:35,  priority:'MEDIUM'   },
+  ],
+  RW:[
+    { name:'Kigali → Musanze',  km:110, existing:1, needed:3, gap:82,  priority:'CRITICAL' },
+    { name:'Kigali → Huye',     km:130, existing:0, needed:3, gap:100, priority:'CRITICAL' },
+    { name:'Kigali → Rubavu',   km:160, existing:1, needed:4, gap:88,  priority:'CRITICAL' },
+  ],
+  ZA:[
+    { name:'Joburg → Cape Town', km:1400, existing:18, needed:35, gap:58, priority:'HIGH'     },
+    { name:'Joburg → Durban',    km:620,  existing:8,  needed:16, gap:65, priority:'HIGH'     },
+    { name:'Cape Town → Garden Route', km:420, existing:6, needed:11, gap:55, priority:'HIGH' },
+    { name:'Pretoria → Polokwane',     km:300, existing:2, needed:8,  gap:78, priority:'CRITICAL' },
+  ],
+  NG:[
+    { name:'Lagos → Abuja',  km:780, existing:1, needed:20, gap:98,  priority:'CRITICAL' },
+    { name:'Lagos → Ibadan', km:130, existing:2, needed:4,  gap:72,  priority:'HIGH'     },
+    { name:'Abuja → Kano',   km:350, existing:0, needed:9,  gap:100, priority:'CRITICAL' },
+  ],
+  AE:[
+    { name:'Dubai → Abu Dhabi',  km:140, existing:28, needed:30, gap:8,  priority:'LOW'    },
+    { name:'Abu Dhabi → Al Ain', km:160, existing:8,  needed:10, gap:32, priority:'MEDIUM' },
+    { name:'Dubai → Fujairah',   km:130, existing:3,  needed:5,  gap:55, priority:'HIGH'   },
+  ],
+};
+
+const FUNDING = {
+  KE:[
+    { name:'World Bank ESMAP',  amount:'$50M+', match:'HIGH'   },
+    { name:'African Dev. Bank', amount:'$30M+', match:'HIGH'   },
+    { name:'Green Climate Fund',amount:'$20M+', match:'HIGH'   },
+    { name:'USAID Power Africa',amount:'$10M+', match:'MEDIUM' },
+    { name:'UK BII / MOBILIST', amount:'$15M+', match:'MEDIUM' },
+  ],
+  ET:[
+    { name:'World Bank IDA',    amount:'$100M+', match:'HIGH'   },
+    { name:'African Dev. Bank', amount:'$40M+',  match:'HIGH'   },
+    { name:'Green Climate Fund',amount:'$25M+',  match:'HIGH'   },
+    { name:'USAID Power Africa',amount:'$15M+',  match:'HIGH'   },
+  ],
+  RW:[
+    { name:'World Bank ESMAP', amount:'$20M+', match:'HIGH'   },
+    { name:'African Dev. Bank',amount:'$15M+', match:'HIGH'   },
+    { name:'EU Global Gateway',amount:'$10M+', match:'HIGH'   },
+  ],
+  ZA:[
+    { name:'DBSA',             amount:'$50M+', match:'HIGH'   },
+    { name:'IDC South Africa', amount:'$30M+', match:'HIGH'   },
+    { name:'World Bank ESMAP', amount:'$25M+', match:'MEDIUM' },
+  ],
+  NG:[
+    { name:'World Bank Nigeria',amount:'$80M+',    match:'HIGH'   },
+    { name:'African Dev. Bank', amount:'$40M+',    match:'HIGH'   },
+    { name:'IFC Private Sector',amount:'Variable', match:'MEDIUM' },
+  ],
+  AE:[
+    { name:'Abu Dhabi Investment',amount:'$500M+', match:'HIGH' },
+    { name:'DEWA (Dubai Energy)', amount:'$200M+', match:'HIGH' },
+    { name:'Masdar / Mubadala',   amount:'$100M+', match:'HIGH' },
+  ],
+};
+
+// User tier simulation (would come from session in real app)
+const USER_TIER = 'developer'; // 'free' | 'developer' | 'business'
+
+const ENDPOINTS = [
+  { id:'ev_readiness',   label:'/gov/ev-readiness',      desc:'Country readiness score across 4 dimensions', tier:'free',     icon:'📊' },
+  { id:'corridor',       label:'/gov/corridor-mapping',  desc:'Highway charging gap analysis by corridor',    tier:'developer',icon:'🗺️' },
+  { id:'funding_roi',    label:'/gov/funding-roi',        desc:'Investment impact: chargers, carbon, jobs',    tier:'developer',icon:'💰' },
+  { id:'biz_roi',        label:'/biz/roi-calculator',    desc:'Payback period and revenue projection',        tier:'developer',icon:'📈' },
+  { id:'fleet_route',    label:'/fleet/route-coverage',  desc:'Waypoint-by-waypoint charging availability',   tier:'business', icon:'🚌' },
+  { id:'corridor_prio',  label:'/gov/investment-priority',desc:'Ranked list of corridors by urgency score',   tier:'business', icon:'🎯' },
+];
+
+const TIER_RANK = { free:0, developer:1, business:2 };
+
+function tierAllowed(epTier) {
+  return TIER_RANK[USER_TIER] >= TIER_RANK[epTier];
+}
+
+// ── STATE ─────────────────────────────────────────────────────
+let selectedCountry  = null;
+let selectedEndpoints = new Set();
+let reportTitle = '';
+
+// ── INIT ─────────────────────────────────────────────────────
+(function init() {
+  // Country grid
+  const grid = document.getElementById('country-grid');
+  Object.entries(COUNTRIES).forEach(([code, c]) => {
+    const btn = document.createElement('div');
+    btn.className = 'country-btn';
+    btn.dataset.code = code;
+    btn.innerHTML = `
+      <span class="country-flag">${c.flag}</span>
+      <div class="country-name">${c.name}</div>
+      <div class="country-score">${c.score} / 100</div>`;
+    btn.onclick = () => selectCountry(code);
+    grid.appendChild(btn);
+  });
+
+  // Endpoint list
+  const list = document.getElementById('endpoint-list');
+  ENDPOINTS.forEach(ep => {
+    const allowed = tierAllowed(ep.tier);
+    const item = document.createElement('div');
+    item.className = 'endpoint-item' + (allowed ? '' : ' locked');
+    item.dataset.id = ep.id;
+    item.innerHTML = `
+      <div class="ep-header">
+        <span class="ep-name">${ep.icon} ${ep.label}</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="ep-tier tier-${ep.tier}">${ep.tier}</span>
+          ${allowed
+            ? '<div class="ep-check" id="check-'+ep.id+'"></div>'
+            : '<span class="lock-icon">🔒</span>'}
+        </div>
+      </div>
+      <div class="ep-desc">${ep.desc}</div>
+      ${!allowed ? `<div style="font-size:10px;color:var(--amber);margin-top:6px;font-family:'DM Mono',monospace">Upgrade to ${ep.tier} to unlock</div>` : ''}
+    `;
+    if (allowed) {
+      item.onclick = () => toggleEndpoint(ep.id, item);
+    }
+    list.appendChild(item);
+  });
+
+  // Default title
+  document.getElementById('report-title').value = '';
+})();
+
+// ── INTERACTIONS ──────────────────────────────────────────────
+function selectCountry(code) {
+  selectedCountry = code;
+  document.querySelectorAll('.country-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.code === code);
+  });
+  // Auto-set title if empty
+  const titleInput = document.getElementById('report-title');
+  if (!titleInput.value) {
+    const d = new Date();
+    const mon = d.toLocaleDateString('en-GB',{month:'short',year:'numeric'});
+    titleInput.value = `${COUNTRIES[code].name} EV Infrastructure Report — ${mon}`;
+    reportTitle = titleInput.value;
+  }
+  updateGenerateBtn();
+  renderPreview();
+}
+
+function toggleEndpoint(id, item) {
+  if (selectedEndpoints.has(id)) {
+    selectedEndpoints.delete(id);
+    item.classList.remove('selected');
+    document.getElementById('check-'+id).textContent = '';
+  } else {
+    selectedEndpoints.add(id);
+    item.classList.add('selected');
+    document.getElementById('check-'+id).textContent = '✓';
+  }
+  updateGenerateBtn();
+  renderPreview();
+}
+
+function updatePreviewTitle() {
+  reportTitle = document.getElementById('report-title').value;
+}
+
+function updateGenerateBtn() {
+  const btn = document.getElementById('generate-btn');
+  const count = selectedEndpoints.size;
+  const countEl = document.getElementById('sel-count');
+  const ready = selectedCountry && count > 0;
+  btn.disabled = !ready;
+  if (ready) {
+    countEl.innerHTML = `<span>${count}</span> section${count>1?'s':''} selected · ready to generate`;
+  } else if (!selectedCountry) {
+    countEl.innerHTML = 'Select a country first';
+  } else {
+    countEl.innerHTML = 'Select at least 1 section to generate';
+  }
+}
+
+// ── PREVIEW RENDERER ─────────────────────────────────────────
+function renderPreview() {
+  const empty = document.getElementById('empty-state');
+  const cards = document.getElementById('preview-cards');
+
+  if (!selectedCountry || selectedEndpoints.size === 0) {
+    empty.style.display = 'flex';
+    cards.style.display = 'none';
+    return;
+  }
+
+  empty.style.display = 'none';
+  cards.style.display = 'flex';
+
+  const c   = COUNTRIES[selectedCountry];
+  const cors = CORRIDORS[selectedCountry] || [];
+  const fund = FUNDING[selectedCountry] || [];
+  let html = '';
+
+  // Card generators
+  if (selectedEndpoints.has('ev_readiness')) {
+    const readColor = c.score >= 70 ? 'var(--green)' : c.score >= 50 ? 'var(--amber)' : 'var(--red)';
+    const bars = [
+      { l:'Renewable Energy', v:c.renewable, c:c.renewable>60?'var(--green)':'var(--amber)' },
+      { l:'Policy Strength',  v:c.policy,    c:c.policy>60?'var(--green)':'var(--amber)'    },
+      { l:'Grid Reliability', v:c.grid,      c:c.grid>60?'var(--green)':'var(--amber)'      },
+      { l:'Import Conditions',v:Math.max(0,100-c.tariff*2), c:c.tariff<15?'var(--green)':'var(--amber)' },
+    ];
+    html += `<div class="preview-card" style="--card-accent:var(--green)">
+      <div class="preview-card-title">📊 EV Readiness Score</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:center">
+        <div style="text-align:center">
+          <div style="font-size:52px;font-weight:800;color:${readColor};line-height:1">${c.score}</div>
+          <div style="font-size:9px;font-family:'DM Mono',monospace;color:var(--muted);letter-spacing:2px;margin-top:2px">${c.tier} TIER</div>
+        </div>
+        <div>${bars.map(b=>`
+          <div style="margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:3px">
+              <span>${b.l}</span><span style="color:${b.c}">${b.v}</span>
+            </div>
+            <div class="mini-bar-track"><div class="mini-bar-fill" style="width:${b.v}%;background:${b.c}"></div></div>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if (selectedEndpoints.has('corridor')) {
+    const topGap = cors.reduce((a,b)=>a.gap>b.gap?a:b, cors[0]);
+    html += `<div class="preview-card" style="--card-accent:var(--red)">
+      <div class="preview-card-title">🗺️ Corridor Analysis</div>
+      <div class="preview-stats" style="margin-bottom:14px">
+        <div><div class="preview-stat-val" style="color:var(--red)">${topGap.gap}/100</div><div class="preview-stat-lbl">Primary Gap Score</div></div>
+        <div><div class="preview-stat-val" style="color:var(--amber)">${cors.reduce((s,c)=>s+c.needed,0)}</div><div class="preview-stat-lbl">Total Chargers Needed</div></div>
+        <div><div class="preview-stat-val" style="color:var(--muted)">${cors.reduce((s,c)=>s+c.existing,0)}</div><div class="preview-stat-lbl">Currently Existing</div></div>
+      </div>
+      <table class="mini-table">
+        <thead><tr><th>Corridor</th><th>Gap</th><th>Deficit</th><th>Priority</th></tr></thead>
+        <tbody>${cors.map(r=>{
+          const gc = r.gap>=90?'pill-red':r.gap>=70?'pill-amber':'pill-green';
+          const pc = r.priority==='CRITICAL'?'pill-red':r.priority==='HIGH'?'pill-amber':'pill-green';
+          return `<tr>
+            <td style="font-weight:600">${r.name}<br><span style="color:var(--muted);font-size:10px">${r.km}km</span></td>
+            <td><span class="mini-pill ${gc}">${r.gap}/100</span></td>
+            <td style="text-align:center;font-weight:700;color:var(--red)">+${r.needed-r.existing}</td>
+            <td><span class="mini-pill ${pc}">${r.priority}</span></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
+  }
+
+  if (selectedEndpoints.has('funding_roi')) {
+    html += `<div class="preview-card" style="--card-accent:var(--gold)">
+      <div class="preview-card-title">💰 Available Funding Sources</div>
+      ${fund.map(f=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+          <div>
+            <div style="font-size:12px;font-weight:600">${f.name}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="font-family:'DM Mono',monospace;font-size:13px;color:var(--gold)">${f.amount}</div>
+            <span class="mini-pill ${f.match==='HIGH'?'pill-green':'pill-amber'}">${f.match}</span>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  }
+
+  if (selectedEndpoints.has('biz_roi')) {
+    const costPerCharger = 8000 * c.costMult;
+    const budget = 1000000;
+    const chargers = Math.floor(budget/costPerCharger);
+    const revenue  = Math.round(chargers*22*0.6*365*0.15);
+    const payback  = (budget/revenue).toFixed(1);
+    html += `<div class="preview-card" style="--card-accent:var(--green)">
+      <div class="preview-card-title">📈 Investment ROI — $1M Scenario</div>
+      <div class="preview-stats">
+        <div><div class="preview-stat-val">${chargers}</div><div class="preview-stat-lbl">Chargers</div></div>
+        <div><div class="preview-stat-val" style="color:var(--gold)">${payback}yr</div><div class="preview-stat-lbl">Payback Period</div></div>
+        <div><div class="preview-stat-val" style="color:var(--green)">$${Math.round(revenue/1000)}K</div><div class="preview-stat-lbl">Annual Revenue</div></div>
+      </div>
+    </div>`;
+  }
+
+  if (selectedEndpoints.has('fleet_route')) {
+    html += `<div class="preview-card" style="--card-accent:var(--amber)">
+      <div class="preview-card-title">🚌 Fleet Route Coverage</div>
+      <div style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;padding:8px 0">
+        Sample: ${c.name} Urban Bus Route Analysis
+      </div>
+      ${cors.slice(0,3).map(r=>{
+        const covered = r.gap < 50;
+        return `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px">
+          <span>${r.name}</span>
+          <span class="mini-pill ${covered?'pill-green':'pill-red'}">${covered?'SERVICEABLE':'COVERAGE GAP'}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  if (selectedEndpoints.has('corridor_prio')) {
+    const sorted = [...cors].sort((a,b)=>b.gap-a.gap);
+    html += `<div class="preview-card" style="--card-accent:var(--amber)">
+      <div class="preview-card-title">🎯 Investment Priority Ranking</div>
+      ${sorted.map((r,i)=>`
+        <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <div style="font-size:18px;font-weight:800;color:var(--muted);font-family:'DM Mono',monospace;width:24px">${i+1}</div>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:600">${r.name}</div>
+            <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace">${r.km}km · +${r.needed-r.existing} chargers needed</div>
+          </div>
+          <div style="font-size:20px;font-weight:800;color:${r.gap>=90?'var(--red)':'var(--amber)'}">${r.gap}</div>
+        </div>`).join('')}
+    </div>`;
+  }
+
+  cards.innerHTML = html;
+}
+
+// ── GENERATE ─────────────────────────────────────────────────
+function generateReport() {
+  if (!selectedCountry || selectedEndpoints.size === 0) return;
+
+  // Build report state
+  const reportData = {
+    country: selectedCountry,
+    title: document.getElementById('report-title').value || `${COUNTRIES[selectedCountry].name} EV Report`,
+    sections: [...selectedEndpoints],
+    generated: new Date().toISOString(),
+    tier: USER_TIER,
+  };
+
+  // Encode as URL param (in real app this would be saved server-side with a UUID)
+  const encoded = btoa(JSON.stringify(reportData));
+  const reportUrl = `/report?data=${encoded}`;
+
+  // Open in new tab
+  window.open(reportUrl, '_blank');
+}
+</script>
+</body>
+</html>
