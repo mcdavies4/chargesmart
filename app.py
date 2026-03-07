@@ -4,6 +4,13 @@ import numpy as np
 import pickle
 import os
 
+# Global intelligence database
+try:
+    from global_data import get_country, all_countries, by_continent, needs_investment, score as readiness_score
+    GLOBAL_DATA_LOADED = True
+except ImportError:
+    GLOBAL_DATA_LOADED = False
+
 # Railway Volume mount point — set DATA_DIR env var in Railway to /data
 # Both web and worker services must mount the same volume at /data
 DATA_DIR = os.environ.get('DATA_DIR', '.')
@@ -1959,6 +1966,292 @@ def report():
 @app.route('/dashboard')
 def dashboard():
     return render_template('dashboard.html')
+
+@app.route('/global')
+def global_dashboard():
+    return render_template('global_dashboard.html')
+
+
+# ══════════════════════════════════════════════════════════════
+# GLOBAL INTELLIGENCE API  ·  /api/v1/global/*
+# ══════════════════════════════════════════════════════════════
+
+@app.route('/api/v1/global/index')
+@require_api_key
+def global_index():
+    """
+    Full ranked list of all 106 countries by EV readiness score.
+    Optional: ?continent=Africa&tier=HIGH&limit=20
+    """
+    try:
+        if not GLOBAL_DATA_LOADED:
+            return jsonify({'error': 'Global data module not loaded'}), 500
+
+        countries = all_countries()
+
+        continent = request.args.get('continent', '').strip()
+        tier      = request.args.get('tier', '').strip().upper()
+        limit     = int(request.args.get('limit', 200))
+
+        if continent:
+            countries = [c for c in countries if c['continent'].lower() == continent.lower()]
+        if tier:
+            countries = [c for c in countries if c['tier'] == tier]
+
+        countries = countries[:limit]
+
+        return jsonify({
+            'total':      len(countries),
+            'filters':    {'continent': continent or 'all', 'tier': tier or 'all'},
+            'avg_score':  round(sum(c['score'] for c in countries) / len(countries), 1) if countries else 0,
+            'countries':  countries,
+            'source':     'ChargeSmart Global Intelligence Database · March 2026',
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/v1/global/country/<code>')
+@require_api_key
+def global_country(code):
+    """
+    Full EV readiness profile for a single country.
+    Returns score, tier, breakdown, corridors, and $1M ROI estimate.
+    """
+    try:
+        if not GLOBAL_DATA_LOADED:
+            return jsonify({'error': 'Global data module not loaded'}), 500
+
+        c = get_country(code.upper())
+        if not c:
+            return jsonify({'error': f'Country code {code.upper()} not found'}), 404
+
+        # Cost multiplier by GDP
+        gdp = c.get('gdp_per_cap', 5000)
+        cost_mult = 0.70 if gdp < 3000 else 0.80 if gdp < 8000 else 0.95 if gdp < 30000 else 1.10
+        cost_per_charger = 8000 * cost_mult
+
+        budget = 1_000_000
+        chargers     = int(budget / cost_per_charger)
+        vehicles_day = chargers * 18
+        carbon_year  = round(chargers * 22 * 0.8 * 365 * 0.00021)
+        jobs         = chargers * 2
+        revenue_year = round(chargers * 22 * 0.6 * 365 * 0.15)
+        payback_yrs  = round(budget / revenue_year, 1) if revenue_year else None
+
+        import_score = max(0, 100 - c.get('tariff', 25) * 2)
+
+        return jsonify({
+            'code':       c['code'],
+            'name':       c['name'],
+            'continent':  c['continent'],
+            'score':      c['score'],
+            'tier':       c['tier'],
+            'breakdown': {
+                'renewable_energy':   {'score': c['renewable'],  'weight': '30%'},
+                'policy_strength':    {'score': c['policy'],     'weight': '30%'},
+                'grid_reliability':   {'score': c['grid'],       'weight': '25%'},
+                'import_conditions':  {'score': import_score,    'weight': '15%', 'tariff_pct': c['tariff']},
+            },
+            'infrastructure': {
+                'existing_chargers': c['chargers'],
+                'population_m':      c['population'],
+                'gdp_per_capita':    gdp,
+                'chargers_per_100k': round(c['chargers'] / (c['population'] * 10), 1) if c['population'] else 0,
+            },
+            'corridors':  c.get('corridors', []),
+            'roi_1m_usd': {
+                'chargers_deployed':  chargers,
+                'vehicles_served_day': vehicles_day,
+                'co2_saved_year_t':   carbon_year,
+                'jobs_created':       jobs,
+                'annual_revenue_usd': revenue_year,
+                'payback_years':      payback_yrs,
+                'cost_per_charger_usd': int(cost_per_charger),
+            },
+            'source': 'ChargeSmart Global Intelligence Database · March 2026',
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/v1/global/compare')
+@require_api_key
+def global_compare():
+    """
+    Compare up to 5 countries side by side.
+    ?codes=KE,ET,RW,ZA,NG
+    """
+    try:
+        if not GLOBAL_DATA_LOADED:
+            return jsonify({'error': 'Global data module not loaded'}), 500
+
+        codes_param = request.args.get('codes', '')
+        if not codes_param:
+            return jsonify({'error': 'Provide ?codes=KE,ET,RW (up to 5)'}), 400
+
+        codes = [c.strip().upper() for c in codes_param.split(',')][:5]
+        results = []
+        not_found = []
+
+        for code in codes:
+            c = get_country(code)
+            if c:
+                results.append({
+                    'code':      c['code'],
+                    'name':      c['name'],
+                    'score':     c['score'],
+                    'tier':      c['tier'],
+                    'renewable': c['renewable'],
+                    'policy':    c['policy'],
+                    'grid':      c['grid'],
+                    'tariff':    c['tariff'],
+                    'chargers':  c['chargers'],
+                    'continent': c['continent'],
+                })
+            else:
+                not_found.append(code)
+
+        if not results:
+            return jsonify({'error': 'No valid country codes provided'}), 400
+
+        results.sort(key=lambda x: x['score'], reverse=True)
+        winner = results[0]
+
+        return jsonify({
+            'countries':   results,
+            'winner':      {'code': winner['code'], 'name': winner['name'], 'score': winner['score']},
+            'not_found':   not_found,
+            'source':      'ChargeSmart Global Intelligence Database · March 2026',
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/v1/global/investment-gaps')
+@require_api_key
+def global_investment_gaps():
+    """
+    Countries ranked by infrastructure urgency — most chargers needed first.
+    Ideal for DFI and government funding allocation decisions.
+    ?min_gap=70&continent=Africa&limit=20
+    """
+    try:
+        if not GLOBAL_DATA_LOADED:
+            return jsonify({'error': 'Global data module not loaded'}), 500
+
+        min_gap   = int(request.args.get('min_gap', 70))
+        continent = request.args.get('continent', '').strip()
+        limit     = int(request.args.get('limit', 50))
+
+        gaps = needs_investment(min_gap=min_gap)
+
+        if continent:
+            gaps = [g for g in gaps if g['continent'].lower() == continent.lower()]
+
+        gaps = gaps[:limit]
+
+        total_chargers_needed = sum(g['total_chargers_needed'] for g in gaps)
+        total_corridors       = sum(len(g['critical_corridors']) for g in gaps)
+
+        return jsonify({
+            'summary': {
+                'countries_with_gaps':     len(gaps),
+                'total_chargers_needed':   total_chargers_needed,
+                'total_critical_corridors':total_corridors,
+                'min_gap_threshold':       min_gap,
+                'estimated_investment_usd': total_chargers_needed * 8000,
+            },
+            'countries': gaps,
+            'source':    'ChargeSmart Global Intelligence Database · March 2026',
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/v1/global/leaderboard')
+def global_leaderboard_api():
+    """
+    Public leaderboard — top 20 countries by readiness score.
+    No API key required (used on public leaderboard page).
+    Optional: ?continent=Africa
+    """
+    try:
+        if not GLOBAL_DATA_LOADED:
+            return jsonify({'error': 'Global data module not loaded'}), 500
+
+        continent = request.args.get('continent', '').strip()
+        countries = all_countries()
+
+        if continent:
+            countries = [c for c in countries if c['continent'].lower() == continent.lower()]
+
+        top = [{
+            'rank':      i + 1,
+            'code':      c['code'],
+            'name':      c['name'],
+            'score':     c['score'],
+            'tier':      c['tier'],
+            'continent': c['continent'],
+            'renewable': c['renewable'],
+            'chargers':  c['chargers'],
+        } for i, c in enumerate(countries[:20])]
+
+        return jsonify({
+            'leaderboard': top,
+            'total_countries': len(countries),
+            'continent_filter': continent or 'global',
+            'source': 'ChargeSmart Global Intelligence Database · March 2026',
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/v1/global/continent-summary')
+@require_api_key
+def global_continent_summary():
+    """
+    Aggregate EV readiness stats per continent.
+    Good for regional reports and investor briefings.
+    """
+    try:
+        if not GLOBAL_DATA_LOADED:
+            return jsonify({'error': 'Global data module not loaded'}), 500
+
+        grouped = by_continent()
+        summary = []
+
+        for continent, countries in grouped.items():
+            scores    = [c['score'] for c in countries]
+            chargers  = sum(c['chargers'] for c in countries)
+            high      = sum(1 for c in countries if c['tier'] == 'HIGH')
+            medium    = sum(1 for c in countries if c['tier'] == 'MEDIUM')
+            low       = sum(1 for c in countries if c['tier'] == 'LOW')
+            top       = max(countries, key=lambda x: x['score'])
+            bottom    = min(countries, key=lambda x: x['score'])
+
+            summary.append({
+                'continent':      continent,
+                'countries':      len(countries),
+                'avg_score':      round(sum(scores) / len(scores), 1),
+                'top_score':      max(scores),
+                'bottom_score':   min(scores),
+                'tier_breakdown': {'HIGH': high, 'MEDIUM': medium, 'LOW': low},
+                'total_chargers': chargers,
+                'leader':         {'code': top['code'], 'name': top['name'], 'score': top['score']},
+                'needs_most_help':{'code': bottom['code'], 'name': bottom['name'], 'score': bottom['score']},
+            })
+
+        summary.sort(key=lambda x: x['avg_score'], reverse=True)
+
+        return jsonify({
+            'continents': summary,
+            'global_avg': round(sum(c['avg_score'] for c in summary) / len(summary), 1),
+            'source':     'ChargeSmart Global Intelligence Database · March 2026',
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/solutions')
 def solutions_page():
