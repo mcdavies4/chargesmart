@@ -1,0 +1,121 @@
+name: ChargeSmart — Collect, Enrich & Retrain
+
+on:
+  schedule:
+    # Runs every 6 hours — 00:00, 06:00, 12:00, 18:00 UTC
+    - cron: '0 0,6,12,18 * * *'
+
+  # Also lets you trigger it manually from GitHub UI anytime
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Collection mode'
+        required: true
+        default: 'emerging'
+        type: choice
+        options:
+          - all
+          - emerging
+          - africa
+          - existing
+
+jobs:
+  collect-enrich-retrain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90  # kill if it hangs
+
+    steps:
+
+      # ── 1. CHECKOUT ───────────────────────────────────────────
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history so we can push back
+
+      # ── 2. PYTHON SETUP ───────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # ── 3. INSTALL DEPENDENCIES ───────────────────────────────
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install \
+            requests \
+            pandas \
+            scikit-learn \
+            numpy \
+            flask \
+            gunicorn
+
+      # ── 4. COLLECT DATA ───────────────────────────────────────
+      - name: Collect EV charging data
+        run: |
+          MODE=${{ github.event.inputs.mode || 'emerging' }}
+          echo "Running collection mode: $MODE"
+          python -c "
+          import collector, sys
+          modes = {
+              'all':      collector.ALL_REGIONS,
+              'emerging': collector.EMERGING_MARKETS,
+              'africa':   collector.AFRICA_REGIONS,
+              'existing': collector.EXISTING_REGIONS,
+          }
+          mode = '$MODE'
+          regions = modes.get(mode, collector.EMERGING_MARKETS)
+          print(f'Collecting {len(regions)} regions: {regions}')
+          count = collector.collect_all(regions)
+          print(f'Collected {count:,} chargers')
+          "
+        env:
+          PYTHONUNBUFFERED: "1"
+
+      # ── 5. ENRICH ─────────────────────────────────────────────
+      - name: Enrich data
+        run: |
+          python enricher.py
+          echo "enriched_data.csv size:"
+          wc -l enriched_data.csv || echo "File not found"
+
+      # ── 6. RETRAIN MODEL ──────────────────────────────────────
+      - name: Retrain model
+        run: |
+          python model.py
+
+      # ── 7. AUDIT ─────────────────────────────────────────────
+      - name: Data audit
+        run: |
+          python -c "
+          import os, pandas as pd
+          if os.path.exists('enriched_data.csv'):
+              df = pd.read_csv('enriched_data.csv')
+              print(f'Rows: {len(df):,}')
+              if 'country' in df.columns:
+                  print(df['country'].value_counts().to_string())
+          if os.path.exists('charger_model.pkl'):
+              import pickle
+              with open('charger_model.pkl','rb') as f:
+                  m = pickle.load(f)
+              print(f'Model: {type(m).__name__}, features: {m.n_features_in_}')
+          "
+
+      # ── 8. COMMIT & PUSH BACK TO REPO ────────────────────────
+      - name: Commit updated data and model
+        run: |
+          git config user.name  "ChargeSmart Bot"
+          git config user.email "bot@chargesmart.online"
+
+          git add enriched_data.csv charger_model.pkl model_features.txt data_*.json || true
+
+          # Only commit if something changed
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            ROWS=$(python -c "import pandas as pd; print(f\"{len(pd.read_csv('enriched_data.csv')):,}\")" 2>/dev/null || echo "unknown")
+            git commit -m "Auto-retrain: ${ROWS} rows [$(date -u '+%Y-%m-%d %H:%M')] UTC"
+            git push
+            echo "✅ Pushed to repo — Railway will auto-deploy"
+          fi

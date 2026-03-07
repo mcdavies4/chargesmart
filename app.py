@@ -1946,6 +1946,11 @@ def api_batch_predict():
 # GOVERNMENT & BUSINESS ENDPOINTS
 # ═══════════════════════════════════════════════════════════════
 
+
+@app.route('/dashboard')
+def dashboard():
+    return render_template('dashboard.html')
+
 @app.route('/solutions')
 def solutions_page():
     return render_template('solutions.html')
