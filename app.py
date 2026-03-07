@@ -3,6 +3,15 @@ import pandas as pd
 import numpy as np
 import pickle
 import os
+
+# Railway Volume mount point — set DATA_DIR env var in Railway to /data
+# Both web and worker services must mount the same volume at /data
+DATA_DIR = os.environ.get('DATA_DIR', '.')
+
+def data_path(filename):
+    """Returns path to a data file, using DATA_DIR if set."""
+    return os.path.join(DATA_DIR, filename)
+
 import requests
 import json
 try:
@@ -52,8 +61,8 @@ def get_plan(email):
 load_subscribers()
 
 def load_chargers():
-    if os.path.exists('enriched_data.csv'):
-        df = pd.read_csv('enriched_data.csv')
+    if os.path.exists(data_path('enriched_data.csv')):
+        df = pd.read_csv(data_path('enriched_data.csv'))
         chargers = df.groupby('id').agg({
             'lat': 'first', 'lon': 'first', 'capacity': 'first',
             'operator': 'first', 'location_type': 'first', 'country': 'first'
@@ -109,7 +118,7 @@ def train_model(chargers):
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
     print(f"Model trained! Accuracy: {model.score(X_test, y_test):.2%}")
-    with open('charger_model.pkl', 'wb') as f:
+    with open(data_path('charger_model.pkl'), 'wb') as f:
         pickle.dump(model, f)
     return model
 
@@ -179,9 +188,9 @@ def get_live_chargers(lat, lon, radius_miles, country):
 
 chargers = load_chargers()
 
-if os.path.exists('charger_model.pkl'):
+if os.path.exists(data_path('charger_model.pkl')):
     try:
-        with open('charger_model.pkl', 'rb') as f:
+        with open(data_path('charger_model.pkl'), 'rb') as f:
             model = pickle.load(f)
         print("Model loaded from file")
     except Exception as e:
@@ -675,10 +684,10 @@ def api_charger_deserts():
         reg = regions[region]
 
         # Load charger data — sample for speed (still accurate)
-        if os.path.exists('enriched_data.csv'):
+        if os.path.exists(data_path('enriched_data.csv')):
             import pandas as pd
             import numpy as np
-            df = pd.read_csv('enriched_data.csv', usecols=['lat','lon','country'])
+            df = pd.read_csv(data_path('enriched_data.csv'), usecols=['lat','lon','country'])
             if reg['country'] != 'ALL':
                 df = df[df['country'] == reg['country']]
             # Sample max 50k rows — enough for accurate desert detection
@@ -902,8 +911,8 @@ def api_predict():
         ]]
 
         import pickle, os
-        if os.path.exists('charger_model.pkl'):
-            model = pickle.load(open('charger_model.pkl', 'rb'))
+        if os.path.exists(data_path('charger_model.pkl')):
+            model = pickle.load(open(data_path('charger_model.pkl'), 'rb'))
             proba = model.predict_proba(features_vals)[0]
             prob_free = round(float(proba[0]) * 100, 1)
             prediction = 'free' if prob_free >= 50 else 'busy'
@@ -916,7 +925,7 @@ def api_predict():
         best_prob = prob_free
         for h in range(24):
             fv = [[h, day, 1 if day >= 5 else 0, min(cap,20), lat, lon, country_map.get(country,0), loc_map_r.get(loc_type,1)]]
-            if os.path.exists('charger_model.pkl'):
+            if os.path.exists(data_path('charger_model.pkl')):
                 p = model.predict_proba(fv)[0]
                 pf = round(float(p[0]) * 100, 1)
                 if pf > best_prob:
@@ -1399,7 +1408,7 @@ if __name__ == '__main__':
 def load_charger_data(country=None):
     """Load enriched_data.csv, generating synthetic data if missing."""
     import pandas as pd
-    if not os.path.exists('enriched_data.csv'):
+    if not os.path.exists(data_path('enriched_data.csv')):
         # Generate and save synthetic data so all endpoints work
         print("enriched_data.csv missing - generating synthetic data...")
         base = generate_synthetic_chargers()
@@ -1412,13 +1421,13 @@ def load_charger_data(country=None):
             tmp['day_of_week'] = np.random.randint(0, 7, n)
             rows.append(tmp)
         df_full = pd.concat(rows, ignore_index=True)
-        df_full.to_csv('enriched_data.csv', index=False)
+        df_full.to_csv(data_path('enriched_data.csv'), index=False)
         print(f"Generated {len(df_full)} synthetic rows -> enriched_data.csv")
     cols = ['lat','lon','hour','day_of_week','capacity','location_type','operator','country']
     # Only load cols that exist
-    available = pd.read_csv('enriched_data.csv', nrows=0).columns.tolist()
+    available = pd.read_csv(data_path('enriched_data.csv'), nrows=0).columns.tolist()
     load_cols = [c for c in cols if c in available]
-    df = pd.read_csv('enriched_data.csv', usecols=load_cols)
+    df = pd.read_csv(data_path('enriched_data.csv'), usecols=load_cols)
     if country and country != 'ALL':
         df = df[df['country'] == country.upper()]
     return df if len(df) > 0 else None
@@ -1590,8 +1599,8 @@ def api_nearest():
         c_code       = country_map.get(country, 0)
 
         model = None
-        if os.path.exists('charger_model.pkl'):
-            model = pickle.load(open('charger_model.pkl','rb'))
+        if os.path.exists(data_path('charger_model.pkl')):
+            model = pickle.load(open(data_path('charger_model.pkl'),'rb'))
 
         results = []
         for _, row in nearest.iterrows():
@@ -1785,8 +1794,8 @@ def api_forecast():
         cap         = min(capacity, 20)
 
         model = None
-        if os.path.exists('charger_model.pkl'):
-            model = pickle.load(open('charger_model.pkl','rb'))
+        if os.path.exists(data_path('charger_model.pkl')):
+            model = pickle.load(open(data_path('charger_model.pkl'),'rb'))
 
         forecast = []
         for h in range(24):
@@ -1893,8 +1902,8 @@ def api_batch_predict():
         now         = datetime.datetime.now()
 
         model = None
-        if os.path.exists('charger_model.pkl'):
-            model = pickle.load(open('charger_model.pkl','rb'))
+        if os.path.exists(data_path('charger_model.pkl')):
+            model = pickle.load(open(data_path('charger_model.pkl'),'rb'))
 
         results = []
         for ch in chargers:
@@ -2788,7 +2797,7 @@ def api_biz_competitor_audit():
             (abs(df['lat']-lat)<deg)&(abs(df['lon']-lon)<deg)
         ][['lat','lon','operator','capacity','location_type']].drop_duplicates(['lat','lon'])
 
-        model = pickle.load(open('charger_model.pkl','rb')) if os.path.exists('charger_model.pkl') else None
+        model = pickle.load(open(data_path('charger_model.pkl'),'rb')) if os.path.exists(data_path('charger_model.pkl')) else None
         country_map = {'UK':0,'US':1,'EU':2}
         loc_map     = {'motorway':3,'supermarket':2,'council':1,'tesla':2,'other':1}
         hour = datetime.datetime.now().hour
