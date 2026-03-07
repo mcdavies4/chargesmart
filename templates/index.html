@@ -411,7 +411,8 @@ input:focus, select:focus {
         .empty-state { text-align: center; padding: 40px; color: var(--muted); font-family: 'Space Mono', monospace; font-size: 13px; }
         .status-bar { display: none; padding: 12px 16px; background: rgba(0,255,135,0.05); border: 1px solid rgba(0,255,135,0.2); border-radius: 8px; font-family: 'Space Mono', monospace; font-size: 12px; color: var(--green); margin-bottom: 16px; }
         .status-bar.visible { display: block; }
-        .fleet-toggle-btn { padding: 8px 16px; background: transparent; border: 1px solid var(--muted); border-radius: 20px; color: var(--muted); font-family: 'Space Mono', monospace; font-size: 11px; cursor: pointer; letter-spacing: 2px; transition: all 0.3s; }
+        .fleet-toggle-btn { padding: 8px 16px; background: transparent; border: 1px solid var(--muted); border-radius: 20px; color: var(--muted); font-family: 'Space Mono', monospace; font-size: 11px; cursor: pointer; letter-spacing: 2px; transition: all 0.3s; white-space: nowrap; }
+        @media (max-width: 600px) { .fleet-toggle-btn { padding: 6px 10px; font-size: 10px; letter-spacing: 1px; } }
         .fleet-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
         .fleet-stat { background: var(--dark); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
         .fleet-stat-number { font-size: 32px; font-weight: 800; color: var(--green); }
@@ -577,7 +578,7 @@ input:focus, select:focus {
                 <button onclick="openSignup()" style="background:var(--green);border:none;border-radius:20px;padding:6px 14px;color:#0a0a0f;font-family:Space Mono,monospace;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:1px;white-space:nowrap;">JOIN FREE</button>
                 <a href="/login" style="font-family:Space Mono,monospace;font-size:10px;color:var(--green);text-decoration:none;border:1px solid var(--green);border-radius:20px;padding:6px 14px;letter-spacing:1px;white-space:nowrap;">LOGIN</a>
                 <a href="/developers" style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);text-decoration:none;border:1px solid var(--border);border-radius:20px;padding:5px 12px;letter-spacing:1px;white-space:nowrap;">API DOCS</a>
-                <div style="display:flex;gap:8px;align-items:center;">
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;">
                 <button onclick="startDemo()" style="padding:8px 16px;background:rgba(0,255,135,0.1);border:1px solid rgba(0,255,135,0.4);border-radius:20px;color:#00ff87;font-family:Space Mono,monospace;font-size:11px;cursor:pointer;letter-spacing:2px;">▶ DEMO</button>
                 <button id="range-toggle" class="fleet-toggle-btn" onclick="toggleRangeMode()">🔋 RANGE</button>
                 <button id="desert-toggle" class="fleet-toggle-btn" onclick="toggleDesertMode()">🏜 DESERTS</button>
