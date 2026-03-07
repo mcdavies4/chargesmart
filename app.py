@@ -253,6 +253,8 @@ def predict():
 @app.route('/nearby')
 def nearby():
     try:
+        if model is None:
+            return jsonify({'error': 'Model not available'}), 503
         hour = int(request.args.get('hour', 12))
         day_of_week = int(request.args.get('day_of_week', 0))
         radius_miles = float(request.args.get('radius', 1.0))
@@ -1732,6 +1734,8 @@ def api_operators_compare():
         df = load_charger_data(None)
         if df is None:
             return jsonify({'error': 'Data not available'}), 503
+        if df is None:
+            return jsonify({'error': 'Data not available'}), 503
 
         results = []
         for name in names:
@@ -2203,6 +2207,520 @@ def api_gov_disparity():
         return jsonify({'error': str(e)}), 400
 
 # ── BIZ 6. SITE SUITABILITY SCORE ───────────────────────────
+
+# ═══════════════════════════════════════════════════════════════
+# NEW ENDPOINTS - GOV + BIZ
+# ═══════════════════════════════════════════════════════════════
+
+# ── GOV: EV READINESS SCORE ──────────────────────────────────
+@app.route('/api/v1/gov/ev-readiness')
+@require_api_key
+def api_gov_ev_readiness():
+    """Score a country/region on EV infrastructure readiness"""
+    try:
+        country = request.args.get('country', 'KE').upper()
+
+        # Readiness data per country - renewable energy %, policy score, grid score, import tariff
+        READINESS_DATA = {
+            'KE': {'name':'Kenya',        'renewable_pct':90,  'policy_score':72, 'grid_score':58, 'import_tariff':25,  'ev_fleet_pct':0.3,  'highlight':'90% renewable grid — strongest EV foundation in Africa'},
+            'ET': {'name':'Ethiopia',     'renewable_pct':98,  'policy_score':85, 'grid_score':45, 'import_tariff':0,   'ev_fleet_pct':0.8,  'highlight':'First country to ban petrol vehicle imports (2024)'},
+            'RW': {'name':'Rwanda',       'renewable_pct':55,  'policy_score':80, 'grid_score':62, 'import_tariff':10,  'ev_fleet_pct':0.4,  'highlight':'Strong government EV policy, Kigali urban density ideal'},
+            'ZA': {'name':'South Africa', 'renewable_pct':12,  'policy_score':45, 'grid_score':40, 'import_tariff':18,  'ev_fleet_pct':0.2,  'highlight':'Largest EV market in Africa but grid reliability a concern'},
+            'NG': {'name':'Nigeria',      'renewable_pct':18,  'policy_score':35, 'grid_score':28, 'import_tariff':35,  'ev_fleet_pct':0.05, 'highlight':'Huge population opportunity but grid investment needed'},
+            'MA': {'name':'Morocco',      'renewable_pct':42,  'policy_score':68, 'grid_score':72, 'import_tariff':20,  'ev_fleet_pct':0.3,  'highlight':'Best grid reliability in North Africa, EU proximity'},
+            'AE': {'name':'UAE',          'renewable_pct':8,   'policy_score':88, 'grid_score':95, 'import_tariff':5,   'ev_fleet_pct':2.1,  'highlight':'World-class grid, strong government EV mandate'},
+            'SA': {'name':'Saudi Arabia', 'renewable_pct':4,   'policy_score':70, 'grid_score':88, 'import_tariff':5,   'ev_fleet_pct':0.8,  'highlight':'Vision 2030 driving rapid EV adoption'},
+            'IN': {'name':'India',        'renewable_pct':33,  'policy_score':75, 'grid_score':65, 'import_tariff':100, 'ev_fleet_pct':1.5,  'highlight':'Fastest growing EV market globally, FAME II policy'},
+            'BR': {'name':'Brazil',       'renewable_pct':83,  'policy_score':60, 'grid_score':70, 'import_tariff':18,  'ev_fleet_pct':1.1,  'highlight':'83% renewable energy, strong ethanol-to-EV transition'},
+            'UK': {'name':'UK',           'renewable_pct':40,  'policy_score':90, 'grid_score':95, 'import_tariff':0,   'ev_fleet_pct':16.0, 'highlight':'2035 petrol ban, £1.6B LEVI fund committed'},
+            'US': {'name':'USA',          'renewable_pct':22,  'policy_score':78, 'grid_score':88, 'import_tariff':0,   'ev_fleet_pct':7.6,  'highlight':'$7.5B federal charging network investment'},
+        }
+
+        data = READINESS_DATA.get(country, {
+            'name': country, 'renewable_pct': 20, 'policy_score': 40,
+            'grid_score': 50, 'import_tariff': 20, 'ev_fleet_pct': 0.1,
+            'highlight': 'Emerging EV market'
+        })
+
+        # Calculate overall readiness score (0-100)
+        readiness_score = round(
+            data['renewable_pct'] * 0.30 +
+            data['policy_score']  * 0.30 +
+            data['grid_score']    * 0.25 +
+            max(0, 100 - data['import_tariff'] * 2) * 0.15
+        , 1)
+
+        # Tier classification
+        if readiness_score >= 75:   tier = 'HIGH'
+        elif readiness_score >= 50: tier = 'MEDIUM'
+        else:                       tier = 'LOW'
+
+        # Barriers and opportunities
+        barriers = []
+        opportunities = []
+        if data['import_tariff'] > 20:  barriers.append(f"High EV import tariff ({data['import_tariff']}%)")
+        if data['grid_score'] < 50:     barriers.append("Grid reliability needs improvement")
+        if data['renewable_pct'] < 20:  barriers.append("High carbon grid reduces EV green credentials")
+        if data['renewable_pct'] > 60:  opportunities.append(f"{data['renewable_pct']}% renewable energy = truly green EVs")
+        if data['policy_score'] > 70:   opportunities.append("Strong government EV policy framework")
+        if data['ev_fleet_pct'] > 1:    opportunities.append(f"EV fleet already at {data['ev_fleet_pct']}% — momentum building")
+
+        return jsonify({
+            'country':          country,
+            'country_name':     data['name'],
+            'readiness_score':  readiness_score,
+            'tier':             tier,
+            'components': {
+                'renewable_energy_pct': data['renewable_pct'],
+                'policy_score':         data['policy_score'],
+                'grid_reliability':     data['grid_score'],
+                'import_tariff_pct':    data['import_tariff'],
+                'ev_fleet_pct':         data['ev_fleet_pct'],
+            },
+            'highlight':        data['highlight'],
+            'barriers':         barriers,
+            'opportunities':    opportunities,
+            'recommendation':   f"{'Priority market for EV infrastructure investment' if tier == 'HIGH' else 'Targeted investment with policy support needed' if tier == 'MEDIUM' else 'Foundation work required before mass deployment'}",
+            'data_source':      'ChargeSmart EV Readiness Index 2026',
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ── GOV: CORRIDOR MAPPING ─────────────────────────────────────
+@app.route('/api/v1/gov/corridor-mapping')
+@require_api_key
+def api_gov_corridor_mapping():
+    """Map key highway corridors and identify charging gaps"""
+    try:
+        country  = request.args.get('country', 'KE').upper()
+        corridor = request.args.get('corridor', '')
+
+        CORRIDORS = {
+            'KE': [
+                {'name': 'Nairobi → Mombasa', 'distance_km': 480, 'est_drive_hrs': 6.5,
+                 'chargers_existing': 4, 'chargers_needed': 12, 'gap_score': 94,
+                 'key_stops': ['Nairobi','Machakos','Mtito Andei','Voi','Mombasa'],
+                 'notes': 'Primary trade corridor. 4 existing chargers all in Nairobi. 476km unserviced.'},
+                {'name': 'Nairobi → Nakuru', 'distance_km': 156, 'est_drive_hrs': 2.2,
+                 'chargers_existing': 2, 'chargers_needed': 4, 'gap_score': 72,
+                 'key_stops': ['Nairobi','Naivasha','Nakuru'],
+                 'notes': 'High traffic tourist route to Rift Valley.'},
+                {'name': 'Nairobi → Kisumu', 'distance_km': 350, 'est_drive_hrs': 5.0,
+                 'chargers_existing': 1, 'chargers_needed': 9, 'gap_score': 91,
+                 'key_stops': ['Nairobi','Nakuru','Kericho','Kisumu'],
+                 'notes': 'Western Kenya economic corridor. Almost no charging infrastructure.'},
+                {'name': 'Mombasa → Malindi', 'distance_km': 120, 'est_drive_hrs': 1.8,
+                 'chargers_existing': 0, 'chargers_needed': 3, 'gap_score': 100,
+                 'key_stops': ['Mombasa','Kilifi','Malindi'],
+                 'notes': 'Coastal tourist corridor. Zero EV infrastructure.'},
+            ],
+            'ET': [
+                {'name': 'Addis Ababa → Adama', 'distance_km': 100, 'est_drive_hrs': 1.5,
+                 'chargers_existing': 3, 'chargers_needed': 4, 'gap_score': 35,
+                 'key_stops': ['Addis Ababa','Dukem','Adama'],
+                 'notes': 'Best served corridor in Ethiopia. Industrial zone route.'},
+                {'name': 'Addis Ababa → Dire Dawa', 'distance_km': 515, 'est_drive_hrs': 7.0,
+                 'chargers_existing': 1, 'chargers_needed': 13, 'gap_score': 96,
+                 'key_stops': ['Addis Ababa','Adama','Awash','Harar','Dire Dawa'],
+                 'notes': 'Critical trade route to Djibouti port. Almost no charging.'},
+            ],
+            'ZA': [
+                {'name': 'Johannesburg → Cape Town', 'distance_km': 1400, 'est_drive_hrs': 14.0,
+                 'chargers_existing': 18, 'chargers_needed': 35, 'gap_score': 58,
+                 'key_stops': ['Johannesburg','Bloemfontein','Beaufort West','Cape Town'],
+                 'notes': "Africa's most developed EV corridor but still significant gaps."},
+            ],
+            'AE': [
+                {'name': 'Dubai → Abu Dhabi', 'distance_km': 140, 'est_drive_hrs': 1.5,
+                 'chargers_existing': 28, 'chargers_needed': 30, 'gap_score': 8,
+                 'key_stops': ['Dubai','Jebel Ali','Abu Dhabi'],
+                 'notes': 'Well served. Near saturation point for current EV adoption.'},
+            ],
+            'UK': [
+                {'name': 'London → Edinburgh (A1/M1)', 'distance_km': 660, 'est_drive_hrs': 7.0,
+                 'chargers_existing': 45, 'chargers_needed': 48, 'gap_score': 22,
+                 'key_stops': ['London','Peterborough','Leeds','Newcastle','Edinburgh'],
+                 'notes': 'Mostly served but rural gaps between Leeds and Newcastle.'},
+            ],
+        }
+
+        country_corridors = CORRIDORS.get(country, [])
+
+        if corridor:
+            country_corridors = [c for c in country_corridors
+                                 if corridor.lower() in c['name'].lower()]
+
+        if not country_corridors:
+            return jsonify({'error': f'No corridor data for country {country}'}), 404
+
+        # Summary stats
+        total_chargers_existing = sum(c['chargers_existing'] for c in country_corridors)
+        total_chargers_needed   = sum(c['chargers_needed']   for c in country_corridors)
+        avg_gap_score           = round(sum(c['gap_score'] for c in country_corridors) / len(country_corridors), 1)
+
+        return jsonify({
+            'country':                  country,
+            'corridors':                country_corridors,
+            'summary': {
+                'total_corridors':          len(country_corridors),
+                'total_km_mapped':          sum(c['distance_km'] for c in country_corridors),
+                'chargers_existing':        total_chargers_existing,
+                'chargers_needed':          total_chargers_needed,
+                'charger_deficit':          total_chargers_needed - total_chargers_existing,
+                'avg_gap_score':            avg_gap_score,
+                'most_critical_corridor':   max(country_corridors, key=lambda x: x['gap_score'])['name'],
+            },
+            'data_source': 'ChargeSmart Corridor Intelligence 2026',
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ── GOV: FUNDING ROI ─────────────────────────────────────────
+@app.route('/api/v1/gov/funding-roi')
+@require_api_key
+def api_gov_funding_roi():
+    """Given investment amount, return projected chargers, coverage gain, carbon impact"""
+    try:
+        budget_usd   = float(request.args.get('budget_usd', 1000000))
+        country      = request.args.get('country', 'KE').upper()
+        charger_type = request.args.get('charger_type', 'ac22').lower()  # ac7, ac22, dc50, dc150
+
+        # Cost per charger installed (USD) by type and country context
+        CHARGER_COSTS = {
+            'ac7':   {'hardware': 2000,  'install': 1500,  'kw': 7,   'label': 'AC 7kW  (slow)'},
+            'ac22':  {'hardware': 5000,  'install': 3000,  'kw': 22,  'label': 'AC 22kW (fast)'},
+            'dc50':  {'hardware': 25000, 'install': 15000, 'kw': 50,  'label': 'DC 50kW (rapid)'},
+            'dc150': {'hardware': 60000, 'install': 25000, 'kw': 150, 'label': 'DC 150kW (ultra-rapid)'},
+        }
+
+        # Country cost multipliers
+        COUNTRY_MULTIPLIERS = {
+            'KE': 0.75, 'ET': 0.70, 'RW': 0.80, 'ZA': 0.85,
+            'NG': 0.72, 'AE': 1.10, 'SA': 1.05, 'IN': 0.60,
+            'UK': 1.20, 'US': 1.15, 'DE': 1.10, 'FR': 1.05,
+        }
+
+        costs      = CHARGER_COSTS.get(charger_type, CHARGER_COSTS['ac22'])
+        multiplier = COUNTRY_MULTIPLIERS.get(country, 0.85)
+        cost_per_charger = (costs['hardware'] + costs['install']) * multiplier
+
+        chargers_deployable  = int(budget_usd / cost_per_charger)
+        # Coverage: each charger serves ~15km radius in urban, ~30km rural
+        coverage_km2         = chargers_deployable * 500   # avg
+        vehicles_served_daily= chargers_deployable * 18    # avg sessions/day
+        carbon_saved_tonnes_yr= chargers_deployable * costs['kw'] * 0.8 * 365 * 0.00021  # kg CO2/kWh grid saving
+
+        # Revenue potential (if monetised)
+        revenue_yr = chargers_deployable * costs['kw'] * 0.6 * 365 * 0.15  # 60% utilisation, $0.15/kWh
+
+        # Payback period
+        payback_years = round(budget_usd / revenue_yr, 1) if revenue_yr > 0 else None
+
+        # Job creation estimate
+        jobs_construction = chargers_deployable * 2
+        jobs_ongoing      = max(1, chargers_deployable // 10)
+
+        return jsonify({
+            'country':              country,
+            'budget_usd':           budget_usd,
+            'charger_type':         costs['label'],
+            'cost_per_charger_usd': round(cost_per_charger),
+            'deployment': {
+                'chargers_deployable':      chargers_deployable,
+                'coverage_area_km2':        coverage_km2,
+                'vehicles_served_daily':    vehicles_served_daily,
+                'carbon_saved_tonnes_yr':   round(carbon_saved_tonnes_yr, 1),
+            },
+            'economic': {
+                'revenue_potential_usd_yr': round(revenue_yr),
+                'payback_period_years':     payback_years,
+                'jobs_created_construction':jobs_construction,
+                'jobs_created_ongoing':     jobs_ongoing,
+            },
+            'recommendation': (
+                f"A ${budget_usd:,.0f} investment in {country} deploys {chargers_deployable} "
+                f"{costs['label']} chargers, serving ~{vehicles_served_daily:,} vehicles/day "
+                f"and saving {round(carbon_saved_tonnes_yr, 1)} tonnes CO2/year."
+            ),
+            'funding_sources': [
+                'World Bank ESMAP Clean Energy Fund',
+                'African Development Bank (AfDB) GET-FiT',
+                'Green Climate Fund (GCF)',
+                'USAID Power Africa',
+            ] if country in ['KE','ET','RW','ZA','NG','GH','TZ'] else [
+                'European Investment Bank',
+                'UK LEVI Fund',
+                'IFC Emerging Markets',
+            ],
+            'data_source': 'ChargeSmart Funding Intelligence 2026',
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ── BIZ: ROI CALCULATOR ──────────────────────────────────────
+@app.route('/api/v1/biz/roi-calculator')
+@require_api_key
+def api_biz_roi_calculator():
+    """Returns payback period and projected revenue for a charging installation"""
+    try:
+        lat            = float(request.args.get('lat', 51.5))
+        lon            = float(request.args.get('lon', -0.1))
+        charger_type   = request.args.get('charger_type', 'ac22').lower()
+        num_chargers   = int(request.args.get('num_chargers', 2))
+        electricity_rate = float(request.args.get('electricity_rate', 0.28))  # £/kWh
+        charge_rate    = float(request.args.get('charge_rate', 0.65))         # £/kWh charged to customer
+
+        CHARGER_SPECS = {
+            'ac7':   {'kw': 7,   'install_gbp': 3000,  'hardware_gbp': 1500,  'label': 'AC 7kW'},
+            'ac22':  {'kw': 22,  'install_gbp': 6000,  'hardware_gbp': 4000,  'label': 'AC 22kW'},
+            'dc50':  {'kw': 50,  'install_gbp': 18000, 'hardware_gbp': 22000, 'label': 'DC 50kW'},
+            'dc150': {'kw': 150, 'install_gbp': 40000, 'hardware_gbp': 55000, 'label': 'DC 150kW'},
+        }
+
+        spec = CHARGER_SPECS.get(charger_type, CHARGER_SPECS['ac22'])
+
+        # Use nearby data to estimate demand
+        demand_factor = 0.45  # baseline 45% utilisation
+        df = load_charger_data()
+        if df is not None and len(df) > 0:
+            import math
+            nearby = df[
+                (abs(df['lat'] - lat) < 0.1) &
+                (abs(df['lon'] - lon) < 0.1)
+            ]
+            competitor_count = len(nearby['id'].unique()) if 'id' in df.columns else len(nearby)
+            if competitor_count == 0:    demand_factor = 0.65  # desert = high demand
+            elif competitor_count < 3:   demand_factor = 0.55
+            elif competitor_count > 10:  demand_factor = 0.35  # saturated
+        else:
+            competitor_count = 0
+
+        # Financial model
+        total_capex       = (spec['install_gbp'] + spec['hardware_gbp']) * num_chargers
+        hours_per_day     = 24 * demand_factor
+        kwh_per_day       = spec['kw'] * hours_per_day * num_chargers
+        revenue_per_day   = kwh_per_day * charge_rate
+        cost_per_day      = kwh_per_day * electricity_rate
+        profit_per_day    = revenue_per_day - cost_per_day
+        revenue_per_year  = revenue_per_day * 365
+        profit_per_year   = profit_per_day * 365
+        payback_years     = round(total_capex / profit_per_year, 1) if profit_per_year > 0 else None
+
+        # Grant eligibility (UK)
+        ozev_grant        = min(350 * num_chargers, 2500)  # OZEV workplace grant
+        net_capex         = total_capex - ozev_grant
+        payback_with_grant= round(net_capex / profit_per_year, 1) if profit_per_year > 0 else None
+
+        return jsonify({
+            'location':         {'lat': lat, 'lon': lon},
+            'charger_type':     spec['label'],
+            'num_chargers':     num_chargers,
+            'demand': {
+                'utilisation_pct':      round(demand_factor * 100, 1),
+                'nearby_competitors':   competitor_count,
+                'sessions_per_day':     round(hours_per_day * num_chargers, 1),
+                'kwh_delivered_per_day':round(kwh_per_day, 1),
+            },
+            'financials': {
+                'total_capex_gbp':          round(total_capex),
+                'ozev_grant_available_gbp': ozev_grant,
+                'net_capex_after_grant_gbp':round(net_capex),
+                'revenue_per_year_gbp':     round(revenue_per_year),
+                'profit_per_year_gbp':      round(profit_per_year),
+                'payback_years':            payback_years,
+                'payback_years_with_grant': payback_with_grant,
+                'roi_5yr_pct':              round(((profit_per_year * 5 - total_capex) / total_capex) * 100, 1),
+            },
+            'recommendation': (
+                f"{num_chargers}x {spec['label']} chargers at this location should generate "
+                f"£{round(profit_per_year):,}/year profit with a {payback_with_grant}-year payback "
+                f"after OZEV grant."
+            ),
+            'data_source': 'ChargeSmart ROI Intelligence 2026',
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ── FLEET: ROUTE COVERAGE ─────────────────────────────────────
+@app.route('/api/v1/fleet/route-coverage')
+@require_api_key
+def api_fleet_route_coverage():
+    """Given origin + destination, return charging availability along route"""
+    try:
+        orig_lat  = float(request.args.get('orig_lat', 51.5))
+        orig_lon  = float(request.args.get('orig_lon', -0.1))
+        dest_lat  = float(request.args.get('dest_lat', 52.5))
+        dest_lon  = float(request.args.get('dest_lon', -1.9))
+        range_km  = float(request.args.get('range_km', 300))
+        vehicle   = request.args.get('vehicle', 'van')
+
+        import math
+
+        # Distance calculation
+        def haversine(la1, lo1, la2, lo2):
+            R = 6371
+            dlat = math.radians(la2-la1)
+            dlon = math.radians(lo2-lo1)
+            a = math.sin(dlat/2)**2 + math.cos(math.radians(la1))*math.cos(math.radians(la2))*math.sin(dlon/2)**2
+            return R * 2 * math.asin(math.sqrt(a))
+
+        total_km = haversine(orig_lat, orig_lon, dest_lat, dest_lon)
+
+        # Generate waypoints every 80km along route
+        waypoints = []
+        steps = max(1, int(total_km / 80))
+        for i in range(steps + 1):
+            t = i / steps
+            wp_lat = orig_lat + (dest_lat - orig_lat) * t
+            wp_lon = orig_lon + (dest_lon - orig_lon) * t
+            waypoints.append({'lat': round(wp_lat,4), 'lon': round(wp_lon,4),
+                              'km_from_start': round(total_km * t, 1)})
+
+        # Check charger availability at each waypoint
+        df = load_charger_data()
+        legs = []
+        for i, wp in enumerate(waypoints):
+            if df is not None:
+                nearby = df[
+                    (abs(df['lat'] - wp['lat']) < 0.15) &
+                    (abs(df['lon'] - wp['lon']) < 0.15)
+                ]
+                charger_count = len(nearby)
+                has_rapid = (nearby['capacity'] >= 50).any() if len(nearby) > 0 and 'capacity' in nearby.columns else False
+            else:
+                charger_count = 0
+                has_rapid = False
+
+            status = 'GOOD' if charger_count >= 3 else 'LIMITED' if charger_count >= 1 else 'GAP'
+            legs.append({
+                'waypoint':      i + 1,
+                'lat':           wp['lat'],
+                'lon':           wp['lon'],
+                'km_from_start': wp['km_from_start'],
+                'chargers_nearby': charger_count,
+                'has_rapid_charging': has_rapid,
+                'status':        status,
+            })
+
+        gaps    = [l for l in legs if l['status'] == 'GAP']
+        limited = [l for l in legs if l['status'] == 'LIMITED']
+        good    = [l for l in legs if l['status'] == 'GOOD']
+
+        # Can vehicle complete route?
+        charges_needed = math.ceil(total_km / range_km)
+        route_viable   = len(gaps) == 0 or (charges_needed <= len(good) + len(limited))
+
+        return jsonify({
+            'route': {
+                'origin':      {'lat': orig_lat, 'lon': orig_lon},
+                'destination': {'lat': dest_lat, 'lon': dest_lon},
+                'total_km':    round(total_km, 1),
+                'vehicle':     vehicle,
+                'range_km':    range_km,
+            },
+            'legs':            legs,
+            'summary': {
+                'waypoints_checked':    len(legs),
+                'good_coverage':        len(good),
+                'limited_coverage':     len(limited),
+                'charging_gaps':        len(gaps),
+                'charges_needed':       charges_needed,
+                'route_viable':         route_viable,
+                'coverage_score':       round((len(good) / len(legs)) * 100, 1) if legs else 0,
+            },
+            'recommendation': (
+                'Route is fully serviceable.' if route_viable
+                else f'Route has {len(gaps)} charging gap(s). Consider carrying portable charger or planning overnight stop.'
+            ),
+            'data_source': 'ChargeSmart Fleet Intelligence 2026',
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ── FLEET: ENERGY BUDGET ──────────────────────────────────────
+@app.route('/api/v1/fleet/energy-budget')
+@require_api_key
+def api_fleet_energy_budget():
+    """Calculate total energy cost for a fleet route"""
+    try:
+        distance_km      = float(request.args.get('distance_km', 200))
+        num_vehicles     = int(request.args.get('num_vehicles', 10))
+        vehicle_type     = request.args.get('vehicle_type', 'van').lower()
+        trips_per_month  = int(request.args.get('trips_per_month', 20))
+        electricity_rate = float(request.args.get('electricity_rate', 0.28))  # £/kWh
+
+        # kWh per 100km by vehicle type
+        CONSUMPTION = {
+            'car':       15,   # e.g. Tesla Model 3
+            'van':       28,   # e.g. Ford E-Transit
+            'truck':     80,   # e.g. Volta Zero
+            'bus':       120,  # e.g. BYD K9
+            'motorbike': 8,
+        }
+
+        consumption = CONSUMPTION.get(vehicle_type, 28)
+        kwh_per_trip_per_vehicle = (distance_km / 100) * consumption
+
+        # Monthly costs
+        kwh_per_month        = kwh_per_trip_per_vehicle * num_vehicles * trips_per_month
+        cost_per_month       = kwh_per_month * electricity_rate
+        cost_per_trip        = kwh_per_trip_per_vehicle * electricity_rate
+
+        # Peak vs off-peak savings
+        peak_rate            = electricity_rate * 1.4
+        offpeak_rate         = electricity_rate * 0.6
+        cost_peak_month      = kwh_per_month * peak_rate
+        cost_offpeak_month   = kwh_per_month * offpeak_rate
+        potential_saving     = cost_peak_month - cost_offpeak_month
+
+        # vs diesel equivalent
+        diesel_litres_month  = (distance_km / 100) * 8 * num_vehicles * trips_per_month  # 8L/100km
+        diesel_cost_month    = diesel_litres_month * 1.55  # £/litre
+        ev_saving_vs_diesel  = diesel_cost_month - cost_per_month
+
+        return jsonify({
+            'fleet': {
+                'vehicle_type':      vehicle_type,
+                'num_vehicles':      num_vehicles,
+                'distance_km':       distance_km,
+                'trips_per_month':   trips_per_month,
+                'consumption_kwh_100km': consumption,
+            },
+            'energy': {
+                'kwh_per_trip_per_vehicle': round(kwh_per_trip_per_vehicle, 1),
+                'total_kwh_per_month':      round(kwh_per_month, 1),
+            },
+            'costs': {
+                'electricity_rate_gbp_kwh':  electricity_rate,
+                'cost_per_trip_gbp':         round(cost_per_trip, 2),
+                'cost_per_month_gbp':         round(cost_per_month, 2),
+                'cost_per_year_gbp':          round(cost_per_month * 12, 2),
+                'if_charged_peak_gbp_month':  round(cost_peak_month, 2),
+                'if_charged_offpeak_gbp_month':round(cost_offpeak_month, 2),
+                'saving_by_offpeak_gbp_month': round(potential_saving, 2),
+            },
+            'vs_diesel': {
+                'diesel_cost_per_month_gbp':  round(diesel_cost_month, 2),
+                'ev_saving_per_month_gbp':    round(ev_saving_vs_diesel, 2),
+                'ev_saving_per_year_gbp':     round(ev_saving_vs_diesel * 12, 2),
+                'saving_pct':                 round((ev_saving_vs_diesel / diesel_cost_month) * 100, 1) if diesel_cost_month > 0 else 0,
+            },
+            'recommendation': (
+                f"Fleet of {num_vehicles} {vehicle_type}s costs £{round(cost_per_month):,}/month to charge. "
+                f"Switching to off-peak charging saves £{round(potential_saving):,}/month. "
+                f"Saves £{round(ev_saving_vs_diesel):,}/month vs diesel."
+            ),
+            'data_source': 'ChargeSmart Fleet Intelligence 2026',
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/v1/biz/site-score')
 @require_api_key
 def api_biz_site_score():

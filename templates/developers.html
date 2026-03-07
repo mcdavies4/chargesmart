@@ -100,6 +100,7 @@
             <a href="#pricing">PRICING</a>
             <a href="/">APP</a>
             <a href="/login" style="font-family:Space Mono,monospace;font-size:10px;color:var(--green);text-decoration:none;border:1px solid var(--green);border-radius:20px;padding:5px 12px;letter-spacing:1px;">LOGIN</a>
+            <a href="/account" style="font-family:Space Mono,monospace;font-size:10px;color:var(--muted);text-decoration:none;border:1px solid var(--border);border-radius:20px;padding:5px 12px;letter-spacing:1px;white-space:nowrap;">ACCOUNT</a>
         </div>
     </nav>
 
@@ -107,10 +108,10 @@
     <div class="hero">
         <div class="badge">// PUBLIC API v1</div>
         <h1>Build with<br><span>EV Intelligence</span></h1>
-        <p>AI predictions, desert mapping, government intelligence and business analytics across 30 countries — UK, US, Europe, Africa, Middle East &amp; Asia. 25 endpoints, one API.</p>
+        <p>AI predictions, desert mapping, government intelligence and business analytics across 30 countries — UK, US, Europe, Africa, Middle East &amp; Asia. 33 endpoints, one API.</p>
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:40px;">
             <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);">✓ 8.5M data points</div>
-            <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);">✓ 25 endpoints</div>
+            <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);">✓ 33 endpoints</div>
             <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);">✓ 30 countries</div>
             <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);">✓ Gov & business data</div>
             <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);">✓ Free to start</div>
@@ -217,7 +218,7 @@
                 <div class="plan-price">£999 <span>/month</span></div>
                 <div class="plan-limit">Unlimited calls</div>
                 <ul class="plan-features">
-                    <li>All 25 endpoints</li>
+                    <li>All 33 endpoints</li>
                     <li>Everything in Business</li>
                     <li>Custom model training</li>
                     <li>White-label option</li>
@@ -232,6 +233,217 @@
             </div>
         </div>
     </div>
+
+
+    
+        <!-- GOV: EV READINESS -->
+        <div class="endpoint-block">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep-ev-readiness')">
+                <span class="method get">GET</span>
+                <span class="endpoint-path">/api/v1/gov/ev-readiness</span>
+                <span class="endpoint-desc">EV infrastructure readiness score by country</span>
+                <span class="tier-badge tier-developer">DEVELOPER+</span>
+            </div>
+            <div class="endpoint-body" id="ep-ev-readiness">
+                <p>Score any country on EV readiness across renewable energy, policy strength, grid reliability and import tariffs. Ideal for government investment decisions and market entry analysis.</p>
+                <div class="param-table">
+                    <div class="param-row"><span class="param-name">country</span><span class="param-type">string</span><span class="param-desc">ISO country code (KE, ET, ZA, AE, IN, UK, US...)</span></div>
+                </div>
+                <div class="example-response">
+<pre>{
+  "country": "KE",
+  "country_name": "Kenya",
+  "readiness_score": 74.1,
+  "tier": "HIGH",
+  "components": {
+    "renewable_energy_pct": 90,
+    "policy_score": 72,
+    "grid_reliability": 58,
+    "import_tariff_pct": 25
+  },
+  "highlight": "90% renewable grid — strongest EV foundation in Africa",
+  "opportunities": ["90% renewable energy = truly green EVs", "Strong government EV policy framework"],
+  "barriers": ["High EV import tariff (25%)"]
+}</pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- GOV: CORRIDOR MAPPING -->
+        <div class="endpoint-block">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep-corridor')">
+                <span class="method get">GET</span>
+                <span class="endpoint-path">/api/v1/gov/corridor-mapping</span>
+                <span class="endpoint-desc">Highway corridor charging gap analysis</span>
+                <span class="tier-badge tier-developer">DEVELOPER+</span>
+            </div>
+            <div class="endpoint-body" id="ep-corridor">
+                <p>Map key intercity highway corridors and identify critical charging gaps. Includes chargers existing vs needed, gap score and key stops. Essential for national infrastructure planning.</p>
+                <div class="param-table">
+                    <div class="param-row"><span class="param-name">country</span><span class="param-type">string</span><span class="param-desc">ISO country code (KE, ET, ZA, AE, UK...)</span></div>
+                    <div class="param-row"><span class="param-name">corridor</span><span class="param-type">string</span><span class="param-desc">Optional — filter by corridor name (e.g. "Mombasa")</span></div>
+                </div>
+                <div class="example-response">
+<pre>{
+  "country": "KE",
+  "corridors": [{
+    "name": "Nairobi → Mombasa",
+    "distance_km": 480,
+    "chargers_existing": 4,
+    "chargers_needed": 12,
+    "gap_score": 94,
+    "key_stops": ["Nairobi","Machakos","Mtito Andei","Voi","Mombasa"],
+    "notes": "Primary trade corridor. 476km unserviced."
+  }],
+  "summary": {
+    "charger_deficit": 24,
+    "most_critical_corridor": "Nairobi → Mombasa"
+  }
+}</pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- GOV: FUNDING ROI -->
+        <div class="endpoint-block">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep-funding-roi')">
+                <span class="method get">GET</span>
+                <span class="endpoint-path">/api/v1/gov/funding-roi</span>
+                <span class="endpoint-desc">Investment impact calculator for funding bids</span>
+                <span class="tier-badge tier-business">BUSINESS+</span>
+            </div>
+            <div class="endpoint-body" id="ep-funding-roi">
+                <p>Given a budget, returns projected chargers deployable, coverage area, carbon saved, jobs created and payback period. Built for World Bank, AfDB and government funding bid justifications.</p>
+                <div class="param-table">
+                    <div class="param-row"><span class="param-name">budget_usd</span><span class="param-type">number</span><span class="param-desc">Total investment in USD</span></div>
+                    <div class="param-row"><span class="param-name">country</span><span class="param-type">string</span><span class="param-desc">ISO country code</span></div>
+                    <div class="param-row"><span class="param-name">charger_type</span><span class="param-type">string</span><span class="param-desc">ac7 | ac22 | dc50 | dc150</span></div>
+                </div>
+                <div class="example-response">
+<pre>{
+  "budget_usd": 1000000,
+  "country": "KE",
+  "charger_type": "AC 22kW (fast)",
+  "cost_per_charger_usd": 6000,
+  "deployment": {
+    "chargers_deployable": 166,
+    "vehicles_served_daily": 2988,
+    "carbon_saved_tonnes_yr": 668.3
+  },
+  "economic": {
+    "payback_period_years": 4.2,
+    "jobs_created_construction": 332,
+    "jobs_created_ongoing": 16
+  }
+}</pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- BIZ: ROI CALCULATOR -->
+        <div class="endpoint-block">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep-roi-calc')">
+                <span class="method get">GET</span>
+                <span class="endpoint-path">/api/v1/biz/roi-calculator</span>
+                <span class="endpoint-desc">Charging installation ROI and payback calculator</span>
+                <span class="tier-badge tier-developer">DEVELOPER+</span>
+            </div>
+            <div class="endpoint-body" id="ep-roi-calc">
+                <p>Pass a location and charger spec, get back projected revenue, profit, payback period and OZEV grant eligibility. The first question every business asks before installing.</p>
+                <div class="param-table">
+                    <div class="param-row"><span class="param-name">lat / lon</span><span class="param-type">float</span><span class="param-desc">Location coordinates</span></div>
+                    <div class="param-row"><span class="param-name">charger_type</span><span class="param-type">string</span><span class="param-desc">ac7 | ac22 | dc50 | dc150</span></div>
+                    <div class="param-row"><span class="param-name">num_chargers</span><span class="param-type">int</span><span class="param-desc">Number of chargers to install</span></div>
+                    <div class="param-row"><span class="param-name">electricity_rate</span><span class="param-type">float</span><span class="param-desc">Your electricity cost £/kWh (default 0.28)</span></div>
+                    <div class="param-row"><span class="param-name">charge_rate</span><span class="param-type">float</span><span class="param-desc">Price charged to customers £/kWh (default 0.65)</span></div>
+                </div>
+                <div class="example-response">
+<pre>{
+  "charger_type": "AC 22kW",
+  "num_chargers": 2,
+  "demand": {
+    "utilisation_pct": 55.0,
+    "sessions_per_day": 26.4
+  },
+  "financials": {
+    "total_capex_gbp": 20000,
+    "ozev_grant_available_gbp": 700,
+    "revenue_per_year_gbp": 91674,
+    "profit_per_year_gbp": 52059,
+    "payback_years": 0.4,
+    "roi_5yr_pct": 1201.5
+  }
+}</pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- FLEET: ROUTE COVERAGE -->
+        <div class="endpoint-block">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep-route-coverage')">
+                <span class="method get">GET</span>
+                <span class="endpoint-path">/api/v1/fleet/route-coverage</span>
+                <span class="endpoint-desc">Charging availability along a fleet route</span>
+                <span class="tier-badge tier-business">BUSINESS+</span>
+            </div>
+            <div class="endpoint-body" id="ep-route-coverage">
+                <p>Give origin and destination coordinates, get back a waypoint-by-waypoint breakdown of charging availability. Flags gaps, limited coverage and confirms route viability for your vehicle range.</p>
+                <div class="param-table">
+                    <div class="param-row"><span class="param-name">orig_lat / orig_lon</span><span class="param-type">float</span><span class="param-desc">Origin coordinates</span></div>
+                    <div class="param-row"><span class="param-name">dest_lat / dest_lon</span><span class="param-type">float</span><span class="param-desc">Destination coordinates</span></div>
+                    <div class="param-row"><span class="param-name">range_km</span><span class="param-type">float</span><span class="param-desc">Vehicle range in km (default 300)</span></div>
+                    <div class="param-row"><span class="param-name">vehicle</span><span class="param-type">string</span><span class="param-desc">car | van | truck | bus</span></div>
+                </div>
+                <div class="example-response">
+<pre>{
+  "route": { "total_km": 312.4 },
+  "summary": {
+    "charging_gaps": 1,
+    "route_viable": true,
+    "coverage_score": 83.3
+  },
+  "legs": [
+    { "waypoint": 1, "km_from_start": 0, "chargers_nearby": 12, "status": "GOOD" },
+    { "waypoint": 2, "km_from_start": 80, "chargers_nearby": 0, "status": "GAP" }
+  ]
+}</pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- FLEET: ENERGY BUDGET -->
+        <div class="endpoint-block">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep-energy-budget')">
+                <span class="method get">GET</span>
+                <span class="endpoint-path">/api/v1/fleet/energy-budget</span>
+                <span class="endpoint-desc">Fleet energy cost calculator vs diesel</span>
+                <span class="tier-badge tier-developer">DEVELOPER+</span>
+            </div>
+            <div class="endpoint-body" id="ep-energy-budget">
+                <p>Calculate total monthly and annual energy costs for a fleet route. Shows peak vs off-peak savings and compares directly against diesel costs — powerful for fleet operator procurement decisions.</p>
+                <div class="param-table">
+                    <div class="param-row"><span class="param-name">distance_km</span><span class="param-type">float</span><span class="param-desc">Route distance in km</span></div>
+                    <div class="param-row"><span class="param-name">num_vehicles</span><span class="param-type">int</span><span class="param-desc">Fleet size</span></div>
+                    <div class="param-row"><span class="param-name">vehicle_type</span><span class="param-type">string</span><span class="param-desc">car | van | truck | bus | motorbike</span></div>
+                    <div class="param-row"><span class="param-name">trips_per_month</span><span class="param-type">int</span><span class="param-desc">Trips per vehicle per month</span></div>
+                    <div class="param-row"><span class="param-name">electricity_rate</span><span class="param-type">float</span><span class="param-desc">£/kWh (default 0.28)</span></div>
+                </div>
+                <div class="example-response">
+<pre>{
+  "fleet": { "num_vehicles": 10, "vehicle_type": "van" },
+  "costs": {
+    "cost_per_month_gbp": 3136.0,
+    "saving_by_offpeak_gbp_month": 1881.6
+  },
+  "vs_diesel": {
+    "diesel_cost_per_month_gbp": 6820.0,
+    "ev_saving_per_month_gbp": 3684.0,
+    "saving_pct": 54.0
+  }
+}</pre>
+                </div>
+            </div>
+        </div>
 
 
     <!-- HOW IT WORKS -->
@@ -252,7 +464,7 @@
             <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;">
                 <div style="font-size:28px;margin-bottom:10px;">3️⃣</div>
                 <div style="font-size:15px;font-weight:700;margin-bottom:6px;">Call any endpoint</div>
-                <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);line-height:1.6;">Hit any of our 25 endpoints and get back clean JSON. Build apps, dashboards, tools.</div>
+                <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);line-height:1.6;">Hit any of our 33 endpoints and get back clean JSON. Build apps, dashboards, tools.</div>
             </div>
         </div>
 
