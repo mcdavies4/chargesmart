@@ -698,12 +698,19 @@ function generateReport() {
     tier: USER_TIER,
   };
 
-  // Encode as URL param (in real app this would be saved server-side with a UUID)
-  const encoded = btoa(JSON.stringify(reportData));
+  // Encode as URL param — use encodeURIComponent to handle emoji/unicode safely
+  let encoded;
+  try {
+    encoded = btoa(unescape(encodeURIComponent(JSON.stringify(reportData))));
+  } catch(e) {
+    // Fallback: strip non-ASCII from title and retry
+    reportData.title = reportData.title.replace(/[^\x00-\x7F]/g, '').trim() || 'EV Report';
+    encoded = btoa(JSON.stringify(reportData));
+  }
   const reportUrl = `/report?data=${encoded}`;
 
-  // Open in new tab
-  window.open(reportUrl, '_blank');
+  // Navigate in same tab (avoids popup blocker)
+  window.location.href = reportUrl;
 }
 </script>
 </body>

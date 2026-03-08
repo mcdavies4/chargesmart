@@ -401,7 +401,7 @@ function parseReportData() {
     const params = new URLSearchParams(window.location.search);
     const encoded = params.get('data');
     if (!encoded) return null;
-    return JSON.parse(atob(encoded));
+    return JSON.parse(decodeURIComponent(escape(atob(encoded))));
   } catch(e) { return null; }
 }
 
