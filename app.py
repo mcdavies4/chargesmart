@@ -772,7 +772,7 @@ def api_charger_deserts():
             'total_desert_zones': len(deserts),
             'total_covered_zones': len(covered),
             'desert_percentage': desert_pct,
-            'charger_count': len(charger_coords),
+            'charger_count': len(clats),
             'breakdown': breakdown
         })
     except Exception as e:
