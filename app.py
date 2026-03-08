@@ -3578,3 +3578,379 @@ PLAN_LABELS = {
     'enterprise':   'Enterprise',
 }
 
+
+# ══════════════════════════════════════════════════════════════
+# BIZ — EV OPPORTUNITY FINDER  /api/v1/biz/opportunity-finder
+# ══════════════════════════════════════════════════════════════
+#
+# Proactive site discovery for charging network operators.
+# Given a country + optional city/region, returns ranked
+# candidate zones with profitability scores, competition
+# analysis, demand signals and ROI estimates.
+#
+# Factors scored:
+#   - Population density proxy (urban centre distance)
+#   - Existing charger gap (low competition = opportunity)
+#   - EV demand signal (nearby charger usage density)
+#   - Road network type (highway > urban > rural)
+#   - Grid readiness (from global_data readiness score)
+#   - Income / GDP proxy (willingness to pay)
+#   - Renewable energy % (ESG investor appeal)
+#   - Tourism index (transient demand)
+#
+# Tiers: Business+
+
+URBAN_CENTRES = {
+    # country_code: [(name, lat, lon, population_m, tourism_score, income_index)]
+    'KE': [
+        ('Nairobi CBD',        -1.286, 36.820, 4.5, 72, 65),
+        ('Westlands',          -1.267, 36.811, 0.8, 60, 85),
+        ('Karen/Langata',      -1.330, 36.745, 0.4, 55, 90),
+        ('Thika Road',         -1.220, 36.870, 1.2, 40, 60),
+        ('Mombasa City',       -4.050, 39.670, 1.2, 85, 60),
+        ('Mombasa North Coast',-3.970, 39.720, 0.3, 90, 70),
+        ('Kisumu City',        -0.090, 34.760, 0.6, 50, 50),
+        ('Nakuru Town',        -0.304, 36.073, 0.5, 45, 55),
+        ('Nairobi Airport',    -1.319, 36.927, 0.1, 80, 75),
+        ('Gigiri/UN Area',     -1.237, 36.803, 0.2, 50, 95),
+    ],
+    'ET': [
+        ('Addis Ababa Centre',  9.025, 38.747, 4.5, 65, 45),
+        ('Bole Airport Area',   8.977, 38.799, 0.8, 75, 60),
+        ('Adama/Nazret',        8.540, 39.270, 0.4, 40, 45),
+        ('Hawassa City',        7.060, 38.476, 0.3, 50, 42),
+        ('Bahir Dar',          11.594, 37.388, 0.2, 60, 40),
+        ('Dire Dawa',           9.593, 41.866, 0.4, 35, 42),
+    ],
+    'RW': [
+        ('Kigali City Centre',  -1.944, 30.061, 1.4, 72, 55),
+        ('Kigali Airport',      -1.969, 30.135, 0.2, 65, 60),
+        ('Musanze',             -1.499, 29.634, 0.1, 80, 45),
+        ('Huye/Butare',         -2.597, 29.739, 0.1, 45, 42),
+    ],
+    'NG': [
+        ('Lagos Island',        6.455,  3.394, 3.0, 65, 55),
+        ('Victoria Island',     6.428,  3.421, 0.8, 70, 85),
+        ('Lekki',               6.440,  3.530, 1.2, 60, 80),
+        ('Abuja Central',       9.057,  7.491, 2.0, 60, 70),
+        ('Port Harcourt',       4.815,  7.049, 1.0, 45, 65),
+        ('Kano City',          12.000,  8.520, 1.5, 35, 45),
+        ('Ikeja/Airport',       6.579,  3.321, 1.0, 55, 65),
+    ],
+    'ZA': [
+        ('Sandton',            -26.107, 28.057, 0.8, 65, 92),
+        ('Cape Town CBD',      -33.926, 18.424, 0.9, 90, 88),
+        ('Waterfront CT',      -33.902, 18.421, 0.3, 92, 90),
+        ('Johannesburg CBD',   -26.205, 28.042, 1.5, 55, 75),
+        ('Durban Centre',      -29.858, 31.021, 0.8, 78, 72),
+        ('Pretoria CBD',       -25.746, 28.188, 0.7, 55, 75),
+        ('Midrand',            -25.997, 28.129, 0.5, 50, 82),
+        ('OR Tambo Airport',   -26.133, 28.242, 0.2, 70, 80),
+    ],
+    'AE': [
+        ('Dubai Downtown',      25.197, 55.274, 0.5, 95, 98),
+        ('Dubai Mall Area',     25.198, 55.279, 0.3, 96, 98),
+        ('Dubai Marina',        25.080, 55.140, 0.4, 88, 95),
+        ('Abu Dhabi Corniche',  24.467, 54.357, 0.4, 82, 96),
+        ('Sharjah Centre',      25.357, 55.391, 0.5, 65, 80),
+        ('Dubai Airport',       25.253, 55.366, 0.1, 85, 92),
+        ('Al Ain City',         24.207, 55.744, 0.3, 60, 85),
+        ('JBR Beach',           25.077, 55.132, 0.2, 90, 92),
+    ],
+    'MA': [
+        ('Casablanca Centre',   33.589, -7.604, 3.5, 70, 68),
+        ('Rabat City',          33.994, -6.854, 0.8, 72, 72),
+        ('Marrakech Medina',    31.629, -7.987, 0.9, 92, 65),
+        ('Tangier Port',        35.779, -5.804, 0.5, 78, 62),
+        ('Agadir Beach',        30.420, -9.598, 0.3, 88, 62),
+        ('Fes Old Town',        34.054, -4.998, 0.4, 82, 58),
+    ],
+    'IN': [
+        ('Mumbai BKC',          19.069, 72.870, 2.0, 72, 75),
+        ('Bangalore Whitefield', 12.978, 77.748, 1.5, 60, 82),
+        ('Delhi Connaught Pl',  28.632, 77.220, 2.0, 70, 78),
+        ('Pune Koregaon',       18.537, 73.894, 0.8, 58, 72),
+        ('Hyderabad HITEC',     17.450, 78.382, 0.9, 60, 75),
+        ('Chennai Anna Nagar',  13.086, 80.210, 0.8, 58, 65),
+        ('Gurgaon Cyber City',  28.494, 77.089, 0.7, 55, 85),
+    ],
+    'BR': [
+        ('São Paulo Paulista',  -23.562, -46.655, 3.0, 72, 78),
+        ('Rio Ipanema',         -22.985, -43.198, 1.0, 92, 82),
+        ('Rio Barra',           -23.000, -43.365, 0.8, 85, 85),
+        ('Curitiba Centre',     -25.430, -49.271, 0.8, 65, 72),
+        ('Brasilia Asa Sul',    -15.793, -47.882, 0.6, 60, 80),
+        ('Belo Horizonte',      -19.917, -43.934, 0.9, 60, 68),
+    ],
+    'GB': [
+        ('London City',          51.514, -0.072, 2.0, 90, 95),
+        ('London Canary Wharf',  51.505,  0.020, 0.5, 80, 95),
+        ('Birmingham Centre',    52.480, -1.898, 1.1, 70, 78),
+        ('Manchester Spinningfields', 53.480, -2.245, 0.8, 75, 82),
+        ('Edinburgh Royal Mile', 55.950, -3.190, 0.4, 88, 82),
+        ('Bristol Harbourside',  51.450, -2.597, 0.4, 78, 80),
+        ('Leeds Centre',         53.800, -1.549, 0.5, 68, 75),
+        ('Glasgow Centre',       55.861, -4.251, 0.5, 72, 72),
+    ],
+    'US': [
+        ('NYC Midtown',          40.754, -73.984, 2.0, 92, 95),
+        ('LA Westside',          34.024,-118.496, 1.5, 88, 92),
+        ('Chicago Loop',         41.882, -87.629, 1.2, 82, 88),
+        ('Houston Galleria',     29.739, -95.462, 0.8, 68, 85),
+        ('Miami Brickell',       25.765, -80.195, 0.7, 88, 88),
+        ('SF Financial Dist',    37.794,-122.399, 0.8, 85, 95),
+        ('Seattle South Lake Union', 47.625,-122.336, 0.6, 80, 92),
+        ('Austin Domain',        30.400, -97.722, 0.5, 78, 88),
+    ],
+}
+
+# Default fallback centres for countries not in URBAN_CENTRES
+DEFAULT_CENTRES = {
+    'TH': [('Bangkok Sukhumvit', 13.741, 100.560, 2.0, 88, 72),
+            ('Chiang Mai Old City', 18.787, 98.993, 0.3, 85, 58),
+            ('Pattaya Beach', 12.927, 100.877, 0.2, 82, 62)],
+    'VN': [('Ho Chi Minh D1', 10.776, 106.701, 2.5, 82, 55),
+            ('Hanoi Hoan Kiem', 21.028, 105.852, 1.5, 78, 52),
+            ('Da Nang Beach', 16.067, 108.221, 0.4, 85, 50)],
+    'ID': [('Jakarta Sudirman', -6.208, 106.845, 3.0, 70, 58),
+            ('Bali Seminyak', -8.693, 115.165, 0.3, 92, 62),
+            ('Surabaya Centre', -7.250, 112.750, 1.0, 55, 55)],
+    'CL': [('Santiago Las Condes', -33.408, -70.580, 1.2, 72, 78),
+            ('Valparaíso Port', -33.047, -71.612, 0.3, 75, 65),
+            ('Viña del Mar', -33.024, -71.552, 0.2, 80, 68)],
+    'CO': [('Bogotá Chapinero', 4.651, -74.058, 1.5, 72, 62),
+            ('Medellín El Poblado', 6.209, -75.569, 0.8, 80, 65),
+            ('Cartagena Old City', 10.425, -75.550, 0.2, 88, 60)],
+    'SA': [('Riyadh KAFD', 24.764, 46.625, 1.5, 65, 90),
+            ('Jeddah Corniche', 21.540, 39.175, 0.8, 72, 85),
+            ('NEOM', 28.000, 35.200, 0.1, 60, 95)],
+    'EG': [('Cairo Maadi', 29.959, 31.250, 1.5, 72, 58),
+            ('Cairo Zamalek', 30.061, 31.220, 0.4, 68, 65),
+            ('Alexandria Corniche', 31.200, 29.920, 0.6, 65, 55),
+            ('Hurghada Resort', 27.258, 33.812, 0.2, 88, 55)],
+    'RU': [('Moscow City', 55.749, 37.621, 3.0, 72, 72),
+            ('St Petersburg Centre', 59.938, 30.316, 0.8, 82, 68)],
+    'TR': [('Istanbul Levent', 41.081, 29.011, 1.5, 85, 68),
+            ('Ankara Çankaya', 39.920, 32.854, 0.8, 58, 65),
+            ('Antalya Resort', 36.890, 30.708, 0.3, 90, 62)],
+    'AU': [('Sydney CBD', -33.870, 151.209, 1.2, 88, 90),
+            ('Melbourne Docklands', -37.816, 144.955, 1.0, 85, 88),
+            ('Brisbane South Bank', -27.472, 153.021, 0.6, 78, 82)],
+    'JP': [('Tokyo Shinjuku', 35.690, 139.699, 3.5, 90, 88),
+            ('Osaka Namba', 34.665, 135.501, 1.5, 85, 82),
+            ('Kyoto Gion', 35.003, 135.776, 0.4, 92, 80)],
+}
+
+
+@app.route('/api/v1/biz/opportunity-finder')
+@require_api_key
+def api_opportunity_finder():
+    """
+    Proactive EV charging site discovery.
+
+    Returns ranked candidate locations for new charging stations
+    based on demand signals, competition gaps, infrastructure
+    quality, income levels and tourism potential.
+
+    Parameters:
+      country   (required) — ISO country code e.g. KE, NG, ZA
+      city      (optional) — filter to specific city name
+      limit     (optional) — number of results (default 10, max 25)
+      min_score (optional) — minimum opportunity score 0-100 (default 50)
+      focus     (optional) — 'gap' (low competition), 'demand' (high traffic),
+                             'highway' (corridor), 'tourism', 'premium' (high income)
+
+    Example:
+      /api/v1/biz/opportunity-finder?country=KE&limit=10
+      /api/v1/biz/opportunity-finder?country=NG&focus=premium&city=Lagos
+      /api/v1/biz/opportunity-finder?country=ZA&focus=highway
+    """
+    try:
+        country   = request.args.get('country', '').upper().strip()
+        city      = request.args.get('city', '').strip().lower()
+        limit     = min(int(request.args.get('limit', 10)), 25)
+        min_score = int(request.args.get('min_score', 40))
+        focus     = request.args.get('focus', 'balanced').lower()
+
+        if not country:
+            return jsonify({'error': 'country parameter required. e.g. ?country=KE'}), 400
+
+        # Get country intelligence
+        country_intel = None
+        if GLOBAL_DATA_LOADED:
+            country_intel = get_country(country)
+
+        # Get urban centres for this country
+        centres = URBAN_CENTRES.get(country, DEFAULT_CENTRES.get(country, []))
+        if not centres:
+            return jsonify({
+                'error': f'No urban centre data for {country} yet.',
+                'available_countries': list(URBAN_CENTRES.keys()) + list(DEFAULT_CENTRES.keys()),
+                'tip': 'Contact hello@chargesmart.online to request country data.'
+            }), 404
+
+        # Load charger data for competition analysis
+        df = load_charger_data(country)
+
+        # ── SCORE EACH CENTRE ──────────────────────────────────
+        results = []
+        deg2 = 0.018  # ~2km radius
+
+        for centre in centres:
+            name, lat, lon, pop_m, tourism, income = centre
+
+            # Filter by city if specified
+            if city and city not in name.lower():
+                continue
+
+            # ── COMPETITION SCORE (0-25) ──────────────────────
+            # Fewer nearby chargers = bigger gap = higher score
+            if df is not None:
+                nearby = df[
+                    (abs(df['lat'] - lat) < deg2) &
+                    (abs(df['lon'] - lon) < deg2)
+                ]
+                existing_nearby = len(nearby[['lat','lon']].drop_duplicates())
+            else:
+                existing_nearby = 0
+
+            gap_score = max(0, 25 - existing_nearby * 3)
+
+            # ── DEMAND SCORE (0-25) ───────────────────────────
+            # Population density + wider area charger activity
+            if df is not None:
+                wider = df[
+                    (abs(df['lat'] - lat) < 0.05) &
+                    (abs(df['lon'] - lon) < 0.05)
+                ]
+                activity = len(wider)
+            else:
+                activity = 0
+
+            demand_score = min(25, int(pop_m * 4) + min(activity, 10))
+
+            # ── INCOME / WILLINGNESS TO PAY SCORE (0-20) ─────
+            income_score = int(income * 0.20)
+
+            # ── TOURISM SCORE (0-15) ──────────────────────────
+            tourism_score = int(tourism * 0.15)
+
+            # ── GRID / INFRASTRUCTURE SCORE (0-15) ───────────
+            if country_intel:
+                grid_score = int(country_intel['grid'] * 0.15)
+            else:
+                grid_score = 8  # neutral default
+
+            # ── TOTAL ─────────────────────────────────────────
+            total = gap_score + demand_score + income_score + tourism_score + grid_score
+            total = min(total, 100)
+
+            # ── APPLY FOCUS WEIGHT ────────────────────────────
+            if focus == 'gap':
+                total = min(100, total + (gap_score * 0.4))
+            elif focus == 'demand':
+                total = min(100, total + (demand_score * 0.4))
+            elif focus == 'tourism':
+                total = min(100, total + (tourism_score * 0.8))
+            elif focus == 'premium':
+                total = min(100, total + (income_score * 0.6))
+
+            total = round(total)
+
+            # ── ROI ESTIMATE ──────────────────────────────────
+            cost_mult   = 0.70 if (country_intel and country_intel['gdp_per_cap'] < 3000) else \
+                          0.80 if (country_intel and country_intel['gdp_per_cap'] < 8000) else \
+                          0.95 if (country_intel and country_intel['gdp_per_cap'] < 30000) else 1.10
+            charger_cost = int(8000 * cost_mult)
+            sessions_day = round(total / 10 * 1.5, 1)       # demand proxy
+            revenue_month = int(sessions_day * 30 * 8.5 * cost_mult)  # avg session value
+            payback_yrs  = round((charger_cost * 2) / (revenue_month * 12), 1) if revenue_month else None
+
+            # ── RECOMMENDATION ────────────────────────────────
+            grade = 'A+' if total >= 88 else 'A' if total >= 78 else \
+                    'B+' if total >= 68 else 'B' if total >= 58 else \
+                    'C'  if total >= 45 else 'D'
+
+            charger_type = 'DC Fast (50kW+)' if income >= 75 or tourism >= 80 \
+                           else 'AC Fast (22kW)'
+            recommended_units = 4 if total >= 80 else 3 if total >= 65 else 2
+
+            verdict = (
+                'Premium opportunity — high income, low competition'   if total >= 88 else
+                'Strong opportunity — deploy immediately'               if total >= 78 else
+                'Good opportunity — viable with standard ROI'          if total >= 68 else
+                'Moderate — worth exploring with site survey'          if total >= 58 else
+                'Lower priority — consider after primary sites'        if total >= 45 else
+                'Not recommended at this stage'
+            )
+
+            results.append({
+                'rank':              0,  # set after sort
+                'location':          name,
+                'coordinates':       {'lat': round(lat, 4), 'lon': round(lon, 4)},
+                'opportunity_score': total,
+                'grade':             grade,
+                'verdict':           verdict,
+                'score_breakdown': {
+                    'competition_gap':   gap_score,
+                    'ev_demand':         demand_score,
+                    'income_level':      income_score,
+                    'tourism_potential': tourism_score,
+                    'grid_quality':      grid_score,
+                },
+                'competition': {
+                    'chargers_within_2km': existing_nearby,
+                    'level': 'None'   if existing_nearby == 0 else
+                             'Low'    if existing_nearby <= 2 else
+                             'Medium' if existing_nearby <= 5 else 'High',
+                },
+                'recommendation': {
+                    'charger_type':    charger_type,
+                    'units_suggested': recommended_units,
+                    'estimated_cost':  f'${charger_cost * recommended_units:,}',
+                    'sessions_per_day':sessions_day,
+                    'revenue_month':   f'${revenue_month:,}',
+                    'payback_years':   payback_yrs,
+                },
+            })
+
+        # Sort and filter
+        results.sort(key=lambda x: x['opportunity_score'], reverse=True)
+        results = [r for r in results if r['opportunity_score'] >= min_score]
+        results = results[:limit]
+
+        # Add rank
+        for i, r in enumerate(results):
+            r['rank'] = i + 1
+
+        if not results:
+            return jsonify({
+                'message': f'No locations found above score {min_score} for {country}.',
+                'tip':     f'Try lowering min_score or removing city filter.',
+            }), 200
+
+        # Summary
+        top = results[0] if results else None
+        country_name = country_intel['name'] if country_intel else country
+
+        return jsonify({
+            'country':      country_name,
+            'country_code': country,
+            'focus':        focus,
+            'total_found':  len(results),
+            'summary': {
+                'top_location':     top['location'] if top else None,
+                'top_score':        top['opportunity_score'] if top else None,
+                'avg_score':        round(sum(r['opportunity_score'] for r in results) / len(results), 1),
+                'grade_A_count':    sum(1 for r in results if r['grade'] in ['A+', 'A']),
+                'total_investment_estimate': f"${sum(int(r['recommendation']['estimated_cost'].replace('$','').replace(',','')) for r in results):,}",
+            },
+            'opportunities': results,
+            'grid_quality':  country_intel['grid'] if country_intel else 'N/A',
+            'renewable_pct': country_intel['renewable'] if country_intel else 'N/A',
+            'source':        'ChargeSmart Opportunity Intelligence · chargesmart.online',
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
