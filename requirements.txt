@@ -4,7 +4,8 @@ pandas==2.2.3
 numpy==2.2.0
 scikit-learn==1.6.1
 stripe==11.4.1
-requests==2.32.3
+requests==2.31.0
+urllib3==2.2.3
 pgeocode==0.4.1
 geopy==2.4.1
 reportlab==4.2.5
