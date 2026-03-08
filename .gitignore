@@ -1,6 +1,21 @@
-*.json
 __pycache__/
-*.pyc
-.env
-charger_model.pkl
+*.py[cod]
+*.pkl
+*.csv
+data_*.json
 enriched_data.csv
+charger_model.pkl
+.env
+api_keys.json
+users.json
+sessions.json
+signups.json
+magic_tokens.json
+reviews.json
+faults.json
+audit.py
+check_data.py
+*.log
+.DS_Store
+Thumbs.db
+et --hard commit-hash
