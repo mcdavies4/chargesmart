@@ -419,7 +419,7 @@ window.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  const c   = COUNTRIES[data.country];
+  const c   = COUNTRIES[data.country] || { flag:'\u{1F30D}', name:data.country, score:50, tier:'MEDIUM', renewable:50, policy:50, grid:50, tariff:10, costMult:1.0 };
   const cors = CORRIDORS[data.country] || [];
   const fund = FUNDING[data.country]   || [];
   const secs  = new Set(data.sections);
@@ -432,9 +432,9 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('tb-title').textContent = data.title;
   document.getElementById('share-url-text').textContent = window.location.href;
 
-  // Compute summary stats
+  // Compute summary stats (guard against empty cors)
   const totalNeeded = cors.reduce((s,r)=>s+r.needed,0);
-  const topGap = cors.reduce((a,b)=>a.gap>b.gap?a:b, cors[0]);
+  const topGap = cors.length > 0 ? cors.reduce((a,b)=>a.gap>b.gap?a:b) : null;
   const budget = 1000000;
   const costPer = 8000 * c.costMult;
   const chargers = Math.floor(budget/costPer);
@@ -473,7 +473,7 @@ window.addEventListener('DOMContentLoaded', () => {
         <div class="exec-stat-lbl">Readiness Score</div>
       </div>
       <div>
-        <div class="exec-stat-val">${topGap.gap}/100</div>
+        <div class="exec-stat-val">${topGap ? topGap.gap : "N/A"}/100</div>
         <div class="exec-stat-lbl">Primary Gap</div>
       </div>
       <div>
@@ -539,8 +539,7 @@ window.addEventListener('DOMContentLoaded', () => {
       <p style="font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.6">
         ChargeSmart has mapped <strong style="color:var(--ink)">${cors.length} priority corridors</strong> in ${c.name}.
         The analysis identifies a total deficit of <strong style="color:var(--red)">${totalDef} charging units</strong>
-        across all corridors. The primary gap is on the <strong style="color:var(--ink)">${topGap.name}</strong>
-        corridor with a gap score of ${topGap.gap}/100.
+        across all corridors. ${topGap ? ('The primary gap is on the <strong style="color:var(--ink)">'+topGap.name+'</strong> corridor with a gap score of '+topGap.gap+'/100.') : ''}
       </p>
       <table class="data-table">
         <thead>
@@ -707,7 +706,7 @@ window.addEventListener('DOMContentLoaded', () => {
     <div class="footer-brand">
       <strong>ChargeSmart</strong> Intelligence Platform<br>
       chargesmart.online · hello@chargesmart.online<br>
-      Data: 8.5M records · 30 countries · ${dateStr}
+      Data: 5,000+ data points · 106 countries · ${dateStr}
     </div>
     <div class="footer-disclaimer">
       This report was generated using ChargeSmart's proprietary EV infrastructure dataset.
