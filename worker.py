@@ -13,9 +13,13 @@ Railway env vars needed:
 
 import os, sys, time, json, pickle, subprocess
 
-# Match the same DATA_DIR as the web service
-DATA_DIR = os.environ.get('DATA_DIR', '.')
-os.chdir(DATA_DIR)  # write all files directly to DATA_DIR
+# REPO_DIR = where code lives (model.py, collector.py etc.)
+# DATA_DIR = where data files live (Railway Volume at /data)
+REPO_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.environ.get('DATA_DIR', REPO_DIR)
+
+# Stay in REPO_DIR so Python can import collector, enricher, model etc.
+os.chdir(REPO_DIR)
 
 from datetime import datetime
 
@@ -64,9 +68,10 @@ def run_pipeline():
         import enricher
         enricher.enrich()
 
-        if os.path.exists('enriched_data.csv'):
+        enriched_csv = os.path.join(DATA_DIR, 'enriched_data.csv')
+        if os.path.exists(enriched_csv):
             import pandas as pd
-            df = pd.read_csv('enriched_data.csv')
+            df = pd.read_csv(enriched_csv)
             log(f"✅ enriched_data.csv: {len(df):,} rows")
             if 'country' in df.columns:
                 counts = df['country'].value_counts()
@@ -82,13 +87,15 @@ def run_pipeline():
     # ── RETRAIN ───────────────────────────────────────────────
     log("Step 3: Retraining model...")
     try:
+        model_script = os.path.join(REPO_DIR, 'model.py')
         result = subprocess.run(
-            [sys.executable, 'model.py'],
+            [sys.executable, model_script],
             capture_output=False,
             timeout=1800  # 30 min max
         )
-        if result.returncode == 0 and os.path.exists('charger_model.pkl'):
-            size = os.path.getsize('charger_model.pkl') / 1024 / 1024
+        model_pkl = os.path.join(DATA_DIR, 'charger_model.pkl')
+        if result.returncode == 0 and os.path.exists(model_pkl):
+            size = os.path.getsize(model_pkl) / 1024 / 1024
             log(f"✅ Model saved ({size:.1f}MB)")
         else:
             log("❌ Model training failed")
