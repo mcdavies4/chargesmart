@@ -838,10 +838,10 @@ def register_api_key():
         if not email or '@' not in email:
             return jsonify({'error': 'Valid email required'}), 400
 
-        # Ensure api_keys.json exists
+        # Ensure api_keys.json exists in DATA_DIR
         import json as _json
-        if not os.path.exists('api_keys.json'):
-            with open('api_keys.json', 'w') as f:
+        if not os.path.exists(data_path('api_keys.json')):
+            with open(data_path('api_keys.json'), 'w') as f:
                 f.write('{}')
 
         result = create_api_key(email, tier='free')
@@ -3370,7 +3370,7 @@ def auth_verify():
         # Get or create user, then update last login
         user = get_or_create_user(email)
         uid  = user.get('uid', email)
-        update_user(email, {'last_login': datetime.datetime.now().isoformat()})
+        update_user(uid, {'last_login': datetime.datetime.now().isoformat()})
         session_token = create_session(uid)
         response = redirect('/')
         response.set_cookie(

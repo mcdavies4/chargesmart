@@ -6,14 +6,13 @@ import json, os, secrets, hashlib
 from datetime import datetime, timedelta
 
 import os as _os
-_data_dir     = '/tmp' if not _os.access('.', _os.W_OK) else '.'
+# Use DATA_DIR env var (Railway Volume = /data, local = .)
+_data_dir     = _os.environ.get('DATA_DIR', '.')
 USERS_FILE    = _os.path.join(_data_dir, 'users.json')
 TOKENS_FILE   = _os.path.join(_data_dir, 'magic_tokens.json')
 SESSIONS_FILE = _os.path.join(_data_dir, 'sessions.json')
-for _f in ['users.json', 'magic_tokens.json', 'sessions.json']:
-    _src = _f; _dst = _os.path.join(_data_dir, _f)
-    if _os.path.exists(_src) and not _os.path.exists(_dst):
-        import shutil as _sh; _sh.copy(_src, _dst)
+# Ensure data dir exists
+_os.makedirs(_data_dir, exist_ok=True)
 
 # ── FILE HELPERS ─────────────────────────────────────────────
 def load_users():
