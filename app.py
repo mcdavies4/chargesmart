@@ -1397,6 +1397,24 @@ def version():
         'status': 'live'
     })
 
+@app.route('/debug/test-key', methods=['GET','POST'])
+def debug_test_key():
+    """Test key registration directly"""
+    import traceback
+    try:
+        from api_system import create_api_key, KEYS_FILE, load_keys
+        result = create_api_key('test@test.com', tier='free')
+        keys = load_keys()
+        return jsonify({
+            'success': True,
+            'key': result['key'],
+            'existing': result['existing'],
+            'total_keys': len(keys),
+            'KEYS_FILE': KEYS_FILE,
+        })
+    except Exception as e:
+        return jsonify({'error': str(e), 'trace': traceback.format_exc()})
+
 @app.route('/debug/paths')
 def debug_paths():
     import traceback
