@@ -1399,40 +1399,50 @@ def version():
 
 @app.route('/debug/paths')
 def debug_paths():
-    """Temporary debug endpoint - shows file paths and auth status"""
     import traceback
     data_dir = os.environ.get('DATA_DIR', '.')
-    keys_file = os.path.join(data_dir, 'api_keys.json')
-    users_file = os.path.join(data_dir, 'users.json')
 
-    # Try creating a test key
-    test_result = None
-    test_error  = None
+    # Try ACTUALLY creating a key end-to-end
+    create_result = None
+    create_error  = None
     try:
-        from api_system import create_api_key, KEYS_FILE
-        test_result = {
-            'KEYS_FILE': KEYS_FILE,
-            'keys_file_exists': os.path.exists(KEYS_FILE),
-            'data_dir_writable': os.access(data_dir, os.W_OK),
+        from api_system import create_api_key, load_keys, KEYS_FILE
+        result = create_api_key('debug@chargesmart.online', tier='free')
+        keys   = load_keys()
+        create_result = {
+            'result':       result,
+            'KEYS_FILE':    KEYS_FILE,
+            'total_keys':   len(keys),
+            'key_preview':  result['key'][:20] + '...',
         }
     except Exception as e:
-        test_error = traceback.format_exc()
+        create_error = traceback.format_exc()
+
+    # Try auth - create a user
+    auth_result = None
+    auth_error  = None
+    try:
+        from auth import get_or_create_user, USERS_FILE, create_magic_token
+        user  = get_or_create_user('debug@chargesmart.online')
+        token = create_magic_token('debug@chargesmart.online')
+        auth_result = {
+            'USERS_FILE':  USERS_FILE,
+            'user_uid':    user.get('uid'),
+            'user_plan':   user.get('plan'),
+            'token_len':   len(token),
+        }
+    except Exception as e:
+        auth_error = traceback.format_exc()
 
     return jsonify({
-        'DATA_DIR':           data_dir,
-        'keys_file':          keys_file,
-        'keys_file_exists':   os.path.exists(keys_file),
-        'users_file_exists':  os.path.exists(users_file),
-        'data_dir_exists':    os.path.exists(data_dir),
-        'data_dir_writable':  os.access(data_dir, os.W_OK),
-        'cwd':                os.getcwd(),
-        'cwd_writable':       os.access('.', os.W_OK),
-        'api_system':         test_result,
-        'api_system_error':   test_error,
+        'DATA_DIR':          data_dir,
+        'create_key':        create_result,
+        'create_key_error':  create_error,
+        'auth':              auth_result,
+        'auth_error':        auth_error,
         'env_vars': {
-            'DATA_DIR':       os.environ.get('DATA_DIR', 'NOT SET'),
-            'BREVO_API_KEY':  'SET' if os.environ.get('BREVO_API_KEY') else 'NOT SET',
-            'STRIPE_SECRET':  'SET' if os.environ.get('STRIPE_SECRET_KEY') else 'NOT SET',
+            'DATA_DIR':      os.environ.get('DATA_DIR', 'NOT SET'),
+            'BREVO_API_KEY': 'SET' if os.environ.get('BREVO_API_KEY') else 'NOT SET',
         }
     })
 
