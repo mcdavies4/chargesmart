@@ -111,7 +111,7 @@
         <h1>Build with<br><span>EV Intelligence</span></h1>
         <p>AI predictions, desert mapping, government intelligence and business analytics across 106 countries — UK, US, Europe, Africa, Middle East &amp; Asia. 46 endpoints, one API.</p>
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:40px;">
-            <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);">✓ 8.5M data points</div>
+            <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);">✓ 5,000+ data points</div>
             <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);">✓ 46 endpoints</div>
             <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);">✓ 106 countries</div>
             <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);">✓ Gov & business data</div>
@@ -124,7 +124,7 @@
         <h3>Get your free API key</h3>
         <p>100 calls/day free forever. No credit card required.</p>
         <div class="key-input-row">
-            <input type="email" id="reg-email" placeholder="your@email.com">
+            <input type="email" id="reg-email" placeholder="your@email.com" autocomplete="email" data-cfasync="false">
             <button onclick="registerKey()">GET KEY →</button>
         </div>
         <div class="key-result" id="key-result">
@@ -953,7 +953,7 @@ print(f"Best time: {data['best_time_today']}")</pre>
     </div>
 
     <footer>
-        © 2026 ChargeSmart · <a href="/" style="color:var(--muted);">chargesmart.online</a> · <a href='/explorer' style='color:var(--green);text-decoration:none;'>🔬 API Explorer</a> · Built with 8.5M EV data points
+        © 2026 ChargeSmart · <a href="/" style="color:var(--muted);">chargesmart.online</a> · <a href='/explorer' style='color:var(--green);text-decoration:none;'>🔬 API Explorer</a> · Built with real EV data across 106 countries
     </footer>
 </div>
 
@@ -1009,7 +1009,8 @@ function registerKey() {
     btn.textContent = 'GENERATING...';
     btn.disabled = true;
 
-    fetch('/api/v1/keys/register', {
+    var endpoint = '/api/v1/keys/' + 'register';
+    fetch(endpoint, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({email: email})
@@ -1035,6 +1036,7 @@ function registerKey() {
     .catch(function(err) { 
         btn.textContent = originalText;
         btn.disabled = false;
+        console.error('registerKey error:', err);
         alert('Could not connect to server. Please try again.\nError: ' + err.message); 
     });
 }
