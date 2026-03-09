@@ -1056,4 +1056,51 @@ function tryEndpoint(name) {
         'predict':      '/api/v1/predict?lat=51.5074&lon=-0.1278&capacity=2&country=UK',
         'journey-cost': '/api/v1/journey-cost?miles=100&car=tesla_model3&currency=gbp'
     };
-    
+        var url = urls[name];
+    if (!url) return;
+    var fullUrl = url + (url.includes('?') ? '&' : '?') + 'key=' + key;
+    window.open(fullUrl, '_blank');
+}
+
+function upgradePlan(plan) {
+    var email = document.getElementById('reg-email') ? 
+                document.getElementById('reg-email').value.trim() : '';
+    if (!email) {
+        email = prompt('Enter your email to continue:');
+        if (!email || !email.includes('@')) { 
+            alert('Please enter a valid email to upgrade.'); 
+            return; 
+        }
+    }
+    var btn = event.target;
+    btn.textContent = 'REDIRECTING...';
+    btn.disabled = true;
+    fetch('/create-checkout-session', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({plan: plan, email: email})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.url) {
+            window.location.href = d.url;
+        } else {
+            alert(d.error || 'Could not start checkout. Please try again.');
+            btn.textContent = 'UPGRADE NOW';
+            btn.disabled = false;
+        }
+    })
+    .catch(function(err) {
+        alert('Connection error. Please try again.');
+        btn.textContent = 'UPGRADE NOW';
+        btn.disabled = false;
+    });
+}
+
+function toggleEndpoint(id) {
+    var el = document.getElementById(id);
+    el.classList.toggle('open');
+}
+</script>
+</body>
+</html>
