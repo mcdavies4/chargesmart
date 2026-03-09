@@ -1,27 +1,3 @@
-
-TIER_LIMITS = {
-    'free':           100,
-    'pro':            500,
-    'fleet':          2000,
-    'api_developer':  10000,
-    'api_business':   100000,
-    'api_enterprise': 9999999,
-}
-
-TIER_PRICES = {
-    'free':           0,
-    'pro':            9.99,
-    'fleet':          29.99,
-    'api_developer':  49,
-    'api_business':   199,
-    'api_enterprise': 999,
-}
-
-TIER_PRIORITY = {
-    'free': 0, 'pro': 1, 'fleet': 2,
-    'api_developer': 3, 'api_business': 4, 'api_enterprise': 5
-}
-
 """
 ChargeSmart API Key System
 Handles key generation, validation, rate limiting and usage tracking
@@ -32,11 +8,12 @@ import secrets
 import string
 from datetime import datetime, date
 
-# Use /tmp on Railway (read-only filesystem), local otherwise
-import os as _os
 # Use DATA_DIR env var (Railway Volume = /data, local = .)
-_data_dir = _os.environ.get('DATA_DIR', '.')
-KEYS_FILE = _os.path.join(_data_dir, 'api_keys.json')
+_data_dir = os.environ.get('DATA_DIR', '.')
+KEYS_FILE = os.path.join(_data_dir, 'api_keys.json')
+
+# Ensure directory exists
+os.makedirs(_data_dir, exist_ok=True)
 
 TIER_LIMITS = {
     'free':       100,
@@ -52,8 +29,6 @@ TIER_PRICES = {
     'enterprise': 999,
 }
 
-
-# Which endpoints each tier can access
 TIER_ENDPOINTS = {
     'free': [
         '/api/v1/predict',
@@ -69,6 +44,8 @@ TIER_ENDPOINTS = {
         '/api/v1/nearest', '/api/v1/heatmap', '/api/v1/compare',
         '/api/v1/operators/compare', '/api/v1/forecast',
         '/api/v1/gap-score', '/api/v1/predict/batch',
+        '/api/v1/global/index', '/api/v1/global/country',
+        '/api/v1/global/compare', '/api/v1/global/continent-summary',
     ],
     'business': 'all',
     'enterprise': 'all',
@@ -77,36 +54,41 @@ TIER_ENDPOINTS = {
 GOV_BIZ_ENDPOINTS = [
     '/api/v1/gov/investment-priority', '/api/v1/gov/charger-density',
     '/api/v1/gov/planning', '/api/v1/gov/netzero', '/api/v1/gov/disparity',
+    '/api/v1/gov/ev-readiness', '/api/v1/gov/corridor-mapping',
+    '/api/v1/gov/funding-roi', '/api/v1/global/investment-gaps',
     '/api/v1/biz/site-score', '/api/v1/biz/competitor-audit',
     '/api/v1/biz/depot-optimise', '/api/v1/biz/property-score',
-    '/api/v1/biz/retail-opportunity',
+    '/api/v1/biz/retail-opportunity', '/api/v1/biz/roi-calculator',
+    '/api/v1/biz/opportunity-finder',
+    '/api/v1/fleet/route-coverage', '/api/v1/fleet/energy-budget',
 ]
 
 def check_endpoint_access(tier, endpoint_path):
-    """Returns (allowed, error_message)"""
     allowed = TIER_ENDPOINTS.get(tier, TIER_ENDPOINTS['free'])
     if allowed == 'all':
         return True, None
-    # Strip query string
     path = endpoint_path.split('?')[0]
     if path in allowed:
         return True, None
-    # Determine which tier unlocks it
     if path in GOV_BIZ_ENDPOINTS:
         needed = 'Business'
-        price  = '£199/month'
+        price  = '$199/month'
     else:
         needed = 'Developer'
-        price  = '£49/month'
+        price  = '$49/month'
     return False, f'This endpoint requires the {needed} tier ({price}). Upgrade at chargesmart.online/developers'
 
 def load_keys():
     if os.path.exists(KEYS_FILE):
-        with open(KEYS_FILE) as f:
-            return json.load(f)
+        try:
+            with open(KEYS_FILE) as f:
+                return json.load(f)
+        except Exception:
+            return {}
     return {}
 
 def save_keys(keys):
+    os.makedirs(_data_dir, exist_ok=True)
     with open(KEYS_FILE, 'w') as f:
         json.dump(keys, f, indent=2)
 
@@ -117,19 +99,21 @@ def generate_key():
 
 def create_api_key(email, tier='free'):
     keys = load_keys()
-    # Check if email already has a key
+    email = email.lower().strip()
+    # Return existing key if found
     for key, data in keys.items():
         if data.get('email') == email:
             return {'key': key, 'tier': data['tier'], 'existing': True}
     key = generate_key()
     keys[key] = {
-        'email':      email,
-        'tier':       tier,
-        'created':    datetime.now().strftime('%Y-%m-%d'),
-        'usage':      {},
+        'email':       email,
+        'tier':        tier,
+        'created':     datetime.now().strftime('%Y-%m-%d'),
+        'usage':       {},
         'total_calls': 0,
     }
     save_keys(keys)
+    print(f"✅ API key created for {email}: {key[:16]}...")
     return {'key': key, 'tier': tier, 'existing': False}
 
 def validate_key(api_key):
@@ -139,7 +123,7 @@ def validate_key(api_key):
     keys = load_keys()
     if api_key not in keys:
         return False, None, 0, 'Invalid API key. Get yours free at chargesmart.online/developers'
-    data = keys[api_key]
+    data  = keys[api_key]
     tier  = data.get('tier', 'free')
     limit = TIER_LIMITS.get(tier, 100)
     today = str(date.today())
@@ -156,19 +140,18 @@ def record_usage(api_key):
     if 'usage' not in keys[api_key]:
         keys[api_key]['usage'] = {}
     keys[api_key]['usage'][today] = keys[api_key]['usage'].get(today, 0) + 1
-    keys[api_key]['total_calls'] = keys[api_key].get('total_calls', 0) + 1
+    keys[api_key]['total_calls']  = keys[api_key].get('total_calls', 0) + 1
     save_keys(keys)
 
 def get_key_stats(api_key):
     keys = load_keys()
     if api_key not in keys:
         return None
-    data = keys[api_key]
+    data  = keys[api_key]
     tier  = data.get('tier', 'free')
-    limit = TIER_LIMITS[tier]
+    limit = TIER_LIMITS.get(tier, 100)
     today = str(date.today())
     today_usage = data.get('usage', {}).get(today, 0)
-    # Last 7 days usage
     from datetime import timedelta
     weekly = []
     for i in range(7):
