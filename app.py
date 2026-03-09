@@ -3514,7 +3514,7 @@ def api_generate_key():
             return jsonify({'error': 'Not logged in'}), 401
         from api_system import create_api_key, load_keys, save_keys
         result = create_api_key(user['email'], user.get('plan', 'free'))
-        update_user(user['email'], {'api_key': result['key']})
+        update_user(user['uid'], {'api_key': result['key']})
         return jsonify({'success': True, 'api_key': result['key'], 'tier': result['tier']})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -3527,7 +3527,7 @@ def api_save_favourites():
             return jsonify({'error': 'Not logged in'}), 401
         data = request.get_json() or {}
         favourites = data.get('favourites', [])
-        update_user(user['email'], {'favourites': favourites})
+        update_user(user['uid'], {'favourites': favourites})
         return jsonify({'success': True, 'count': len(favourites)})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -3542,10 +3542,20 @@ def api_update_profile():
         updates = {}
         if 'name' in data:
             updates['name'] = data['name'][:60]
-        update_user(user['email'], updates)
+        update_user(user['uid'], updates)
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+PLAN_LABELS = {
+    'free':         'Free',
+    'pro':          'Pro',
+    'fleet':        'Fleet',
+    'api_developer':'Developer',
+    'api_business': 'Business',
+    'enterprise':   'Enterprise',
+}
+
 
 @app.route('/auth/me')
 def auth_me():
@@ -3583,7 +3593,7 @@ def auth_sync_favourites():
             return jsonify({'error': 'Not logged in'}), 401
         data = request.get_json() or {}
         favs = data.get('favourites', [])
-        sync_favourites(user['email'], favs)
+        update_user(user['uid'], {'favourites': favs})
         return jsonify({'success': True, 'favourites': favs})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
@@ -3601,7 +3611,7 @@ def auth_link_api_key():
         valid, tier, remaining, error = validate_key(api_key)
         if not valid:
             return jsonify({'error': 'Invalid API key'}), 400
-        update_user(user['email'], {'api_key': api_key, 'plan': tier})
+        update_user(user['uid'], {'api_key': api_key, 'plan': tier})
         return jsonify({'success': True, 'tier': tier})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
@@ -3614,9 +3624,10 @@ def auth_generate_api_key():
         if not user:
             return jsonify({'error': 'Not logged in'}), 401
         from api_system import create_api_key, load_keys, save_keys
-        api_key = create_api_key(user['email'], 'free')
-        update_user(user['email'], {'api_key': api_key})
-        return jsonify({'success': True, 'api_key': api_key})
+        result  = create_api_key(user['email'], 'free')
+        api_key = result['key']
+        update_user(user['uid'], {'api_key': api_key})
+        return jsonify({'success': True, 'api_key': api_key, 'tier': result['tier']})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
@@ -3630,20 +3641,11 @@ def auth_update_profile():
         data = request.get_json() or {}
         name = data.get('name', '').strip()
         if name:
-            update_user(user['email'], {'name': name})
+            update_user(user['uid'], {'name': name})
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
-
-PLAN_LABELS = {
-    'free':         'Free',
-    'pro':          'Pro',
-    'fleet':        'Fleet',
-    'api_developer':'Developer',
-    'api_business': 'Business',
-    'enterprise':   'Enterprise',
-}
 
 
 # ══════════════════════════════════════════════════════════════
