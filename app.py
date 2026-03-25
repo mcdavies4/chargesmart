@@ -1397,6 +1397,53 @@ def version():
         'status': 'live'
     })
 
+@app.route('/debug/data-stats')
+def debug_data_stats():
+    """Check how much data we have trained on"""
+    import traceback
+    try:
+        stats = {}
+
+        # enriched_data.csv — main training dataset
+        enriched_path = data_path('enriched_data.csv')
+        if os.path.exists(enriched_path):
+            df = pd.read_csv(enriched_path)
+            stats['enriched_data'] = {
+                'records':    len(df),
+                'columns':    list(df.columns),
+                'countries':  int(df['country'].nunique()) if 'country' in df.columns else 'N/A',
+                'sources':    df['source'].value_counts().to_dict() if 'source' in df.columns else 'N/A',
+                'file_size_mb': round(os.path.getsize(enriched_path) / 1024 / 1024, 2),
+            }
+        else:
+            stats['enriched_data'] = 'NOT FOUND'
+
+        # model file
+        model_path = data_path('model.pkl')
+        if os.path.exists(model_path):
+            stats['model'] = {
+                'exists': True,
+                'size_mb': round(os.path.getsize(model_path) / 1024 / 1024, 2),
+                'last_modified': str(pd.Timestamp(os.path.getmtime(model_path), unit='s')),
+            }
+        else:
+            stats['model'] = 'NOT FOUND'
+
+        # any raw data files
+        raw_files = []
+        for f in os.listdir(data_path('')):
+            if f.endswith('.json') or f.endswith('.csv'):
+                fpath = data_path(f)
+                raw_files.append({
+                    'file': f,
+                    'size_mb': round(os.path.getsize(fpath) / 1024 / 1024, 2)
+                })
+        stats['all_data_files'] = sorted(raw_files, key=lambda x: x['size_mb'], reverse=True)
+
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({'error': str(e), 'trace': traceback.format_exc()})
+
 @app.route('/debug/test-key', methods=['GET','POST'])
 def debug_test_key():
     """Test key registration directly"""
