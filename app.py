@@ -1444,6 +1444,67 @@ def debug_data_stats():
     except Exception as e:
         return jsonify({'error': str(e), 'trace': traceback.format_exc()})
 
+@app.route('/debug/founder-upgrade')
+def founder_upgrade():
+    """Upgrade founder account to enterprise for testing"""
+    import traceback
+    FOUNDER_EMAIL = 'azubuikedavies@gmail.com'
+    try:
+        # 1. Upgrade user plan
+        from auth import get_or_create_user, load_users, save_users, USERS_FILE
+        users = load_users()
+        updated_user = False
+        for uid, u in users.items():
+            if u.get('email') == FOUNDER_EMAIL:
+                u['plan'] = 'enterprise'
+                updated_user = True
+                break
+        if not updated_user:
+            # create user if not exists
+            user = get_or_create_user(FOUNDER_EMAIL)
+            users = load_users()
+            for uid, u in users.items():
+                if u.get('email') == FOUNDER_EMAIL:
+                    u['plan'] = 'enterprise'
+                    break
+        save_users(users)
+
+        # 2. Upgrade API key tier
+        from api_system import load_keys, save_keys, create_api_key
+        keys = load_keys()
+        upgraded_key = None
+        for k, data in keys.items():
+            if data.get('email') == FOUNDER_EMAIL:
+                data['tier'] = 'enterprise'
+                upgraded_key = k
+                break
+        if not upgraded_key:
+            result = create_api_key(FOUNDER_EMAIL, 'enterprise')
+            upgraded_key = result['key']
+            keys = load_keys()
+            keys[upgraded_key]['tier'] = 'enterprise'
+        save_keys(keys)
+
+        # 3. Link key to user
+        from auth import load_users, save_users
+        users = load_users()
+        for uid, u in users.items():
+            if u.get('email') == FOUNDER_EMAIL:
+                u['plan']    = 'enterprise'
+                u['api_key'] = upgraded_key
+                break
+        save_users(users)
+
+        return jsonify({
+            'success':  True,
+            'email':    FOUNDER_EMAIL,
+            'plan':     'enterprise',
+            'api_key':  upgraded_key,
+            'message':  'Founder account upgraded to enterprise'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e), 'trace': traceback.format_exc()})
+
 @app.route('/debug/test-key', methods=['GET','POST'])
 def debug_test_key():
     """Test key registration directly"""
