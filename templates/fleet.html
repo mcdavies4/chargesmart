@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChargeSmart — Fleet & Route Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #040d0a;
+    --surface: #081410;
+    --card:    #0c1f19;
+    --border:  #1a3d30;
+    --green:   #00e87a;
+    --green2:  #00b85e;
+    --dim:     #00e87a22;
+    --gold:    #f5c842;
+    --red:     #ff4d4d;
+    --amber:   #ffaa00;
+    --text:    #e8f5f0;
+    --muted:   #5a8070;
+    --label:   #2d6b50;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 60px 60px;
+    opacity: 0.15;
+    pointer-events:none; z-index:0;
+  }
+
+  /* NAV */
+  nav {
+    position: sticky; top:0; z-index:100;
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 14px 32px;
+    background: rgba(4,13,10,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-logo { font-weight:800; font-size:18px; color:var(--green); text-decoration:none; letter-spacing:-0.5px; }
+  .nav-links { display:flex; gap:24px; align-items:center; }
+  .nav-links a { color:var(--muted); text-decoration:none; font-size:13px; font-weight:600; transition:color .2s; }
+  .nav-links a:hover { color:var(--green); }
+  .nav-links a.active { color:var(--green); }
+
+  /* HERO */
+  .hero {
+    position:relative; z-index:1;
+    padding: 60px 32px 40px;
+    max-width: 1100px; margin:0 auto;
+  }
+  .hero-badge {
+    display:inline-flex; align-items:center; gap:8px;
+    background: var(--dim); border:1px solid var(--border);
+    border-radius:20px; padding:6px 14px; font-size:11px;
+    color:var(--green); font-family:'DM Mono',monospace; margin-bottom:20px;
+    text-transform:uppercase; letter-spacing:1px;
+  }
+  .hero h1 {
+    font-size: clamp(32px, 5vw, 56px);
+    font-weight:800; line-height:1.05; letter-spacing:-1.5px;
+    margin-bottom:16px;
+  }
+  .hero h1 span { color:var(--green); }
+  .hero p { color:var(--muted); font-size:16px; max-width:520px; line-height:1.6; }
+
+  /* TABS */
+  .tabs {
+    position:relative; z-index:1;
+    display:flex; gap:4px;
+    padding: 0 32px; max-width:1100px; margin:0 auto 32px;
+  }
+  .tab {
+    padding:10px 20px; border-radius:8px; font-size:13px; font-weight:700;
+    cursor:pointer; border:1px solid var(--border); background:var(--surface);
+    color:var(--muted); transition:all .2s; font-family:'Syne',sans-serif;
+  }
+  .tab.active { background:var(--green); color:#000; border-color:var(--green); }
+  .tab:hover:not(.active) { color:var(--text); border-color:var(--muted); }
+
+  /* MAIN LAYOUT */
+  .main {
+    position:relative; z-index:1;
+    max-width:1100px; margin:0 auto; padding:0 32px 60px;
+  }
+  .panel { display:none; }
+  .panel.active { display:block; }
+
+  /* FORM CARD */
+  .form-card {
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:28px; margin-bottom:24px;
+  }
+  .form-card h3 {
+    font-size:14px; font-weight:700; color:var(--green);
+    text-transform:uppercase; letter-spacing:1px; margin-bottom:20px;
+    font-family:'DM Mono',monospace;
+  }
+  .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .form-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+  .field { display:flex; flex-direction:column; gap:6px; }
+  .field label { font-size:11px; color:var(--muted); font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:0.5px; }
+  .field input, .field select {
+    background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:10px 12px; color:var(--text); font-family:'DM Mono',monospace; font-size:13px;
+    outline:none; transition:border-color .2s;
+  }
+  .field input:focus, .field select:focus { border-color:var(--green); }
+  .field select option { background:var(--surface); }
+
+  .key-field {
+    background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:10px 12px; font-family:'DM Mono',monospace; font-size:12px;
+    color:var(--muted); margin-bottom:20px; width:100%;
+    outline:none; transition:border-color .2s;
+  }
+  .key-field:focus { border-color:var(--green); color:var(--text); }
+
+  .btn-run {
+    background:var(--green); color:#000; border:none; border-radius:8px;
+    padding:12px 28px; font-size:13px; font-weight:800; cursor:pointer;
+    font-family:'Syne',sans-serif; letter-spacing:0.5px; transition:all .15s;
+    margin-top:20px;
+  }
+  .btn-run:hover { background:#00ff88; transform:translateY(-1px); }
+  .btn-run:disabled { background:var(--label); color:var(--muted); cursor:not-allowed; transform:none; }
+
+  /* RESULTS */
+  .result-card {
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:28px; margin-bottom:16px; display:none;
+  }
+  .result-card.show { display:block; }
+  .result-card h3 {
+    font-size:13px; font-weight:700; color:var(--green);
+    text-transform:uppercase; letter-spacing:1px; margin-bottom:20px;
+    font-family:'DM Mono',monospace;
+  }
+
+  /* ROUTE LEGS */
+  .leg {
+    display:flex; align-items:center; gap:12px;
+    padding:12px 0; border-bottom:1px solid var(--border);
+  }
+  .leg:last-child { border-bottom:none; }
+  .leg-km {
+    font-family:'DM Mono',monospace; font-size:11px; color:var(--muted);
+    min-width:60px;
+  }
+  .leg-bar { flex:1; height:6px; background:var(--surface); border-radius:3px; overflow:hidden; }
+  .leg-fill { height:100%; border-radius:3px; transition:width .6s; }
+  .leg-status {
+    font-size:11px; font-family:'DM Mono',monospace; font-weight:700;
+    padding:3px 8px; border-radius:4px; min-width:72px; text-align:center;
+  }
+  .status-GOOD { background:#00e87a22; color:var(--green); }
+  .status-LIMITED { background:#ffaa0022; color:var(--amber); }
+  .status-GAP { background:#ff4d4d22; color:var(--red); }
+  .leg-detail { font-size:11px; color:var(--muted); font-family:'DM Mono',monospace; min-width:100px; text-align:right; }
+
+  /* STAT GRID */
+  .stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+  .stat-box {
+    background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:16px; text-align:center;
+  }
+  .stat-val { font-size:24px; font-weight:800; color:var(--green); font-family:'DM Mono',monospace; }
+  .stat-lbl { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:4px; }
+
+  /* ENERGY BUDGET */
+  .budget-row {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:12px 0; border-bottom:1px solid var(--border);
+    font-size:13px;
+  }
+  .budget-row:last-child { border-bottom:none; }
+  .budget-label { color:var(--muted); font-family:'DM Mono',monospace; font-size:12px; }
+  .budget-val { font-weight:700; font-family:'DM Mono',monospace; }
+  .budget-val.green { color:var(--green); }
+  .budget-val.amber { color:var(--amber); }
+  .budget-val.red   { color:var(--red); }
+
+  /* LOADING */
+  .loading {
+    display:none; text-align:center; padding:40px;
+    font-family:'DM Mono',monospace; font-size:13px; color:var(--muted);
+  }
+  .loading.show { display:block; }
+  .spinner {
+    width:28px; height:28px; border:2px solid var(--border);
+    border-top-color:var(--green); border-radius:50%;
+    animation:spin .8s linear infinite; margin:0 auto 12px;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* ERROR */
+  .error-box {
+    display:none; background:#ff4d4d11; border:1px solid #ff4d4d44;
+    border-radius:8px; padding:16px; color:var(--red);
+    font-family:'DM Mono',monospace; font-size:12px; margin-top:16px;
+  }
+  .error-box.show { display:block; }
+
+  /* API KEY INFO BOX */
+  .key-info {
+    background:var(--dim); border:1px solid var(--border); border-radius:8px;
+    padding:14px 16px; font-size:12px; color:var(--muted);
+    font-family:'DM Mono',monospace; margin-bottom:20px; line-height:1.6;
+  }
+  .key-info a { color:var(--green); text-decoration:none; }
+
+  @media(max-width:600px) {
+    .form-grid, .form-grid-3 { grid-template-columns:1fr; }
+    .stat-grid { grid-template-columns:1fr 1fr; }
+    nav { padding:14px 16px; }
+    .hero, .tabs, .main { padding-left:16px; padding-right:16px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">⚡ ChargeSmart</a>
+  <div class="nav-links">
+    <a href="/dashboard">Dashboard</a>
+    <a href="/explorer">API Explorer</a>
+    <a href="/fleet" class="active">Fleet</a>
+    <a href="/account">Account</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-badge">⚡ Fleet Intelligence</div>
+  <h1>Route Planner &<br><span>Fleet Energy Tools</span></h1>
+  <p>Analyse charging coverage along any route, model energy budgets for your fleet, and identify gaps before your drivers hit them.</p>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('route')">🗺️ Route Coverage</div>
+  <div class="tab" onclick="switchTab('energy')">⚡ Energy Budget</div>
+</div>
+
+<div class="main">
+
+  <!-- ── ROUTE COVERAGE PANEL ── -->
+  <div class="panel active" id="panel-route">
+    <div class="form-card">
+      <h3>Route Details</h3>
+      <div class="key-info">
+        Enter your API key below. Don't have one? <a href="/developers">Get a free key →</a>
+      </div>
+      <input class="key-field" id="route-key" placeholder="cs_live_your_api_key_here" />
+
+      <div class="form-grid" style="margin-bottom:16px;">
+        <div class="field">
+          <label>Origin — Latitude</label>
+          <input type="number" id="orig-lat" value="51.5074" step="0.0001" placeholder="51.5074">
+        </div>
+        <div class="field">
+          <label>Origin — Longitude</label>
+          <input type="number" id="orig-lon" value="-0.1278" step="0.0001" placeholder="-0.1278">
+        </div>
+        <div class="field">
+          <label>Destination — Latitude</label>
+          <input type="number" id="dest-lat" value="53.4808" step="0.0001" placeholder="53.4808">
+        </div>
+        <div class="field">
+          <label>Destination — Longitude</label>
+          <input type="number" id="dest-lon" value="-2.2426" step="0.0001" placeholder="-2.2426">
+        </div>
+      </div>
+      <div class="form-grid-3">
+        <div class="field">
+          <label>Vehicle Range (km)</label>
+          <input type="number" id="range-km" value="300" min="50" max="800">
+        </div>
+        <div class="field">
+          <label>Vehicle Type</label>
+          <select id="vehicle-type">
+            <option value="van">Van</option>
+            <option value="truck">Truck / HGV</option>
+            <option value="car">Car</option>
+            <option value="bus">Bus / Coach</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Quick Route</label>
+          <select id="quick-route" onchange="applyQuickRoute()">
+            <option value="">— Select preset —</option>
+            <option value="51.5074,-0.1278,53.4808,-2.2426">London → Manchester</option>
+            <option value="51.5074,-0.1278,55.9533,-3.1883">London → Edinburgh</option>
+            <option value="51.5074,-0.1278,51.4545,-2.5879">London → Bristol</option>
+            <option value="-1.2921,36.8219,-4.0435,39.6682">Nairobi → Mombasa</option>
+            <option value="6.5244,3.3792,9.0579,7.4951">Lagos → Abuja</option>
+            <option value="33.8869,9.5375,36.8065,10.1815">Tunisia North → South</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn-run" onclick="runRouteCoverage()">ANALYSE ROUTE →</button>
+    </div>
+
+    <div class="loading" id="route-loading">
+      <div class="spinner"></div>
+      Analysing charging coverage along route...
+    </div>
+    <div class="error-box" id="route-error"></div>
+
+    <div class="result-card" id="route-result">
+      <h3>Route Analysis</h3>
+      <div class="stat-grid" id="route-stats"></div>
+      <div id="route-legs"></div>
+    </div>
+  </div>
+
+  <!-- ── ENERGY BUDGET PANEL ── -->
+  <div class="panel" id="panel-energy">
+    <div class="form-card">
+      <h3>Fleet Energy Budget</h3>
+      <div class="key-info">
+        Enter your API key below. Don't have one? <a href="/developers">Get a free key →</a>
+      </div>
+      <input class="key-field" id="energy-key" placeholder="cs_live_your_api_key_here" />
+
+      <div class="form-grid">
+        <div class="field">
+          <label>Origin — Latitude</label>
+          <input type="number" id="e-orig-lat" value="51.5074" step="0.0001">
+        </div>
+        <div class="field">
+          <label>Origin — Longitude</label>
+          <input type="number" id="e-orig-lon" value="-0.1278" step="0.0001">
+        </div>
+        <div class="field">
+          <label>Destination — Latitude</label>
+          <input type="number" id="e-dest-lat" value="53.4808" step="0.0001">
+        </div>
+        <div class="field">
+          <label>Destination — Longitude</label>
+          <input type="number" id="e-dest-lon" value="-2.2426" step="0.0001">
+        </div>
+      </div>
+      <div class="form-grid-3" style="margin-top:16px;">
+        <div class="field">
+          <label>Fleet Size (vehicles)</label>
+          <input type="number" id="fleet-size" value="5" min="1" max="500">
+        </div>
+        <div class="field">
+          <label>Vehicle Type</label>
+          <select id="e-vehicle-type">
+            <option value="van">Van (0.35 kWh/km)</option>
+            <option value="truck">Truck (0.8 kWh/km)</option>
+            <option value="car">Car (0.2 kWh/km)</option>
+            <option value="bus">Bus (1.2 kWh/km)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Trips Per Day</label>
+          <input type="number" id="trips-per-day" value="2" min="1" max="20">
+        </div>
+      </div>
+      <button class="btn-run" onclick="runEnergyBudget()">CALCULATE BUDGET →</button>
+    </div>
+
+    <div class="loading" id="energy-loading">
+      <div class="spinner"></div>
+      Calculating fleet energy requirements...
+    </div>
+    <div class="error-box" id="energy-error"></div>
+
+    <div class="result-card" id="energy-result">
+      <h3>Energy Budget</h3>
+      <div class="stat-grid" id="energy-stats"></div>
+      <div id="energy-breakdown"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['route','energy'][i] === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+function applyQuickRoute() {
+  var v = document.getElementById('quick-route').value;
+  if (!v) return;
+  var parts = v.split(',');
+  document.getElementById('orig-lat').value = parts[0];
+  document.getElementById('orig-lon').value = parts[1];
+  document.getElementById('dest-lat').value = parts[2];
+  document.getElementById('dest-lon').value = parts[3];
+}
+
+function runRouteCoverage() {
+  var key     = document.getElementById('route-key').value.trim();
+  var origLat = document.getElementById('orig-lat').value;
+  var origLon = document.getElementById('orig-lon').value;
+  var destLat = document.getElementById('dest-lat').value;
+  var destLon = document.getElementById('dest-lon').value;
+  var rangeKm = document.getElementById('range-km').value;
+  var vehicle = document.getElementById('vehicle-type').value;
+
+  if (!key) { alert('Please enter your API key'); return; }
+
+  document.getElementById('route-loading').classList.add('show');
+  document.getElementById('route-result').classList.remove('show');
+  document.getElementById('route-error').classList.remove('show');
+  document.querySelector('#panel-route .btn-run').disabled = true;
+
+  var url = '/api/v1/fleet/route-coverage?orig_lat='+origLat+'&orig_lon='+origLon+
+            '&dest_lat='+destLat+'&dest_lon='+destLon+
+            '&range_km='+rangeKm+'&vehicle='+vehicle+'&key='+key;
+
+  fetch(url)
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      document.getElementById('route-loading').classList.remove('show');
+      document.querySelector('#panel-route .btn-run').disabled = false;
+
+      if (d.error) { showError('route-error', d.error); return; }
+
+      var data = d.data || d;
+      renderRouteResult(data);
+    })
+    .catch(function(err) {
+      document.getElementById('route-loading').classList.remove('show');
+      document.querySelector('#panel-route .btn-run').disabled = false;
+      showError('route-error', 'Connection error: ' + err.message);
+    });
+}
+
+function renderRouteResult(d) {
+  var legs = d.legs || d.waypoints || [];
+  var totalKm = d.total_km || d.distance_km || 0;
+  var goodLegs = legs.filter(function(l){ return l.status === 'GOOD'; }).length;
+  var gapLegs  = legs.filter(function(l){ return l.status === 'GAP'; }).length;
+  var coverage = legs.length > 0 ? Math.round((goodLegs / legs.length) * 100) : 0;
+
+  document.getElementById('route-stats').innerHTML =
+    statBox(Math.round(totalKm) + ' km', 'Total Distance') +
+    statBox(legs.length, 'Checkpoints') +
+    statBox(coverage + '%', 'Coverage Score') +
+    statBox(gapLegs, 'Charging Gaps');
+
+  var html = '';
+  legs.forEach(function(leg, i) {
+    var pct = leg.charger_count ? Math.min(100, leg.charger_count * 20) : 0;
+    var col = leg.status === 'GOOD' ? '#00e87a' : leg.status === 'LIMITED' ? '#ffaa00' : '#ff4d4d';
+    html += '<div class="leg">' +
+      '<div class="leg-km">' + (leg.km_from_start || leg.km || 0) + ' km</div>' +
+      '<div class="leg-bar"><div class="leg-fill" style="width:'+pct+'%;background:'+col+'"></div></div>' +
+      '<div class="leg-status status-'+leg.status+'">'+leg.status+'</div>' +
+      '<div class="leg-detail">'+(leg.charger_count||0)+' chargers'+(leg.has_rapid?' · rapid ✓':'')+'</div>' +
+    '</div>';
+  });
+
+  document.getElementById('route-legs').innerHTML = html || '<p style="color:var(--muted);font-size:13px;">No leg data returned.</p>';
+  document.getElementById('route-result').classList.add('show');
+  document.getElementById('route-result').scrollIntoView({behavior:'smooth'});
+}
+
+function runEnergyBudget() {
+  var key     = document.getElementById('energy-key').value.trim();
+  var origLat = document.getElementById('e-orig-lat').value;
+  var origLon = document.getElementById('e-orig-lon').value;
+  var destLat = document.getElementById('e-dest-lat').value;
+  var destLon = document.getElementById('e-dest-lon').value;
+  var fleet   = document.getElementById('fleet-size').value;
+  var vehicle = document.getElementById('e-vehicle-type').value;
+  var trips   = document.getElementById('trips-per-day').value;
+
+  if (!key) { alert('Please enter your API key'); return; }
+
+  document.getElementById('energy-loading').classList.add('show');
+  document.getElementById('energy-result').classList.remove('show');
+  document.getElementById('energy-error').classList.remove('show');
+  document.querySelector('#panel-energy .btn-run').disabled = true;
+
+  var url = '/api/v1/fleet/energy-budget?orig_lat='+origLat+'&orig_lon='+origLon+
+            '&dest_lat='+destLat+'&dest_lon='+destLon+
+            '&fleet_size='+fleet+'&vehicle='+vehicle+'&trips_per_day='+trips+'&key='+key;
+
+  fetch(url)
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      document.getElementById('energy-loading').classList.remove('show');
+      document.querySelector('#panel-energy .btn-run').disabled = false;
+      if (d.error) { showError('energy-error', d.error); return; }
+      renderEnergyResult(d.data || d, fleet, trips);
+    })
+    .catch(function(err) {
+      document.getElementById('energy-loading').classList.remove('show');
+      document.querySelector('#panel-energy .btn-run').disabled = false;
+      showError('energy-error', 'Connection error: ' + err.message);
+    });
+}
+
+function renderEnergyResult(d, fleet, trips) {
+  var totalKwh     = d.total_kwh_per_vehicle || d.kwh_per_trip || 0;
+  var fleetKwh     = totalKwh * fleet * trips;
+  var costPerKwh   = 0.28; // UK avg p/kWh
+  var dailyCost    = (fleetKwh * costPerKwh).toFixed(2);
+  var monthlyCost  = (fleetKwh * costPerKwh * 22).toFixed(0);
+  var distKm       = d.distance_km || d.total_km || 0;
+
+  document.getElementById('energy-stats').innerHTML =
+    statBox(Math.round(distKm) + ' km', 'Route Distance') +
+    statBox(Math.round(totalKwh) + ' kWh', 'Per Vehicle') +
+    statBox('£' + dailyCost, 'Est. Daily Cost') +
+    statBox('£' + monthlyCost, 'Est. Monthly');
+
+  var breakdown = [
+    ['Distance', Math.round(distKm) + ' km', 'green'],
+    ['kWh per vehicle per trip', Math.round(totalKwh) + ' kWh', 'green'],
+    ['Fleet size', fleet + ' vehicles', ''],
+    ['Trips per day', trips, ''],
+    ['Total fleet kWh/day', Math.round(fleetKwh) + ' kWh', 'amber'],
+    ['Est. charging cost (£0.28/kWh)', '£' + dailyCost + '/day', 'amber'],
+    ['Est. monthly charging cost (22 days)', '£' + monthlyCost, 'red'],
+    ['CO₂ saved vs diesel (est.)', Math.round(fleetKwh * 0.233 * 0.7) + ' kg/day', 'green'],
+  ];
+
+  var html = breakdown.map(function(row) {
+    return '<div class="budget-row">' +
+      '<div class="budget-label">' + row[0] + '</div>' +
+      '<div class="budget-val ' + row[2] + '">' + row[1] + '</div>' +
+    '</div>';
+  }).join('');
+
+  document.getElementById('energy-breakdown').innerHTML = html;
+  document.getElementById('energy-result').classList.add('show');
+  document.getElementById('energy-result').scrollIntoView({behavior:'smooth'});
+}
+
+function statBox(val, lbl) {
+  return '<div class="stat-box"><div class="stat-val">'+val+'</div><div class="stat-lbl">'+lbl+'</div></div>';
+}
+
+function showError(id, msg) {
+  var el = document.getElementById(id);
+  el.textContent = '⚠ ' + msg;
+  el.classList.add('show');
+}
+
+// Pre-fill API key from URL param if present
+(function(){
+  var params = new URLSearchParams(window.location.search);
+  var k = params.get('key');
+  if (k) {
+    document.getElementById('route-key').value = k;
+    document.getElementById('energy-key').value = k;
+  }
+})();
+</script>
+</body>
+</html>

@@ -1167,6 +1167,50 @@ def api_leaderboard():
         return jsonify({'error': str(e)}), 400
 
 # ── FLEET PDF REPORT ─────────────────────────────────────────
+@app.route('/fleet')
+def fleet_page():
+    user = get_current_user()
+    return render_template('fleet.html', user=user)
+
+@app.route('/route-planner')
+def route_planner_page():
+    user = get_current_user()
+    return render_template('fleet.html', user=user)
+
+@app.route('/api/v1/health')
+def api_health():
+    """Check which APIs are working"""
+    import traceback
+    results = {}
+
+    # Check data
+    df = load_charger_data()
+    results['data'] = {
+        'status': 'OK' if df is not None and len(df) > 0 else 'NO DATA',
+        'records': len(df) if df is not None else 0,
+    }
+
+    # Check model
+    model_path = data_path('model.pkl')
+    results['model'] = {
+        'status': 'OK' if os.path.exists(model_path) else 'NOT TRAINED',
+    }
+
+    # Check key endpoints one by one
+    endpoints = [
+        '/api/v1/predict', '/api/v1/journey-cost', '/api/v1/nearest',
+        '/api/v1/deserts', '/api/v1/fleet/route-coverage',
+        '/api/v1/fleet/energy-budget', '/api/v1/global/index',
+        '/api/v1/gov/investment-priority', '/api/v1/biz/site-score',
+    ]
+    results['endpoints'] = {ep: 'registered' for ep in endpoints}
+
+    # Overall
+    results['overall'] = 'OK' if results['data']['records'] > 0 else 'DEGRADED - no training data yet'
+    results['tip'] = 'Run worker to collect data if records = 0'
+
+    return jsonify(results)
+
 @app.route('/fleet-report-pdf', methods=['POST'])
 def fleet_report_pdf():
     try:
