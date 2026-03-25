@@ -13,6 +13,11 @@ OSM gives broader coverage in emerging markets.
 import requests
 import json
 import math
+import os
+
+# Use Railway Volume path if set, otherwise current directory
+DATA_DIR = os.environ.get('DATA_DIR', '.')
+os.makedirs(DATA_DIR, exist_ok=True)
 from datetime import datetime
 from collections import Counter
 import time
@@ -354,7 +359,7 @@ def collect_all(regions_to_run=None):
         time.sleep(3)
 
     snapshot = {'timestamp': timestamp, 'chargers': all_chargers}
-    filename = f'data_{date}.json'
+    filename = os.path.join(DATA_DIR, f'data_{date}.json')
     with open(filename, 'a') as f:
         f.write(json.dumps(snapshot) + '\n')
 
